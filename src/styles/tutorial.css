@@ -59,6 +59,10 @@
   background: rgba(255, 255, 255, 0.025);
   transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
+.tut-step.is-sent {
+  background: rgba(245, 199, 106, 0.2);
+  border-color: var(--gold-hi);
+}
 .tut-step:hover {
   background: rgba(245, 199, 106, 0.1);
   border-color: rgba(245, 199, 106, 0.5);
@@ -143,8 +147,8 @@
     }
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .tutorial {
-    animation-name: fade-in !important;
-  }
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .tutorial {
+  animation-name: fade-in !important;
 }
+

@@ -34,6 +34,28 @@
   border-color: rgba(245, 199, 106, 0.6);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 24px rgba(245, 199, 106, 0.12);
 }
+.cmd-pill.is-sent {
+  border-color: var(--gold-hi);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 30px rgba(245, 199, 106, 0.4);
+}
+.cmd-pill.is-hint {
+  animation: pill-breathe calc(1600ms * var(--tm)) ease-in-out 1;
+}
+@keyframes pill-breathe {
+  0%,
+  100% {
+    border-color: rgba(245, 199, 106, 0.28);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    border-color: rgba(245, 199, 106, 0.75);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 26px rgba(245, 199, 106, 0.28);
+  }
+}
+.cmd-btn.is-sent {
+  background: rgba(245, 199, 106, 0.28);
+  color: var(--gold-hi);
+}
 .cmd-btn {
   flex: none;
   min-width: 44px;
@@ -74,7 +96,7 @@
   white-space: nowrap;
 }
 .pulse-once {
-  animation: btn-pulse 900ms ease-out 1;
+  animation: btn-pulse calc(900ms * var(--tm)) ease-out 1;
 }
 @keyframes btn-pulse {
   0% {
@@ -87,12 +109,11 @@
     box-shadow: 0 0 0 0 rgba(245, 199, 106, 0);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .pulse-once {
-    animation: none;
-    outline: 2px solid var(--gold);
-    outline-offset: 2px;
-  }
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .pulse-once {
+  animation: none;
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 .input-wrap {
@@ -145,32 +166,18 @@
   border-radius: 2px;
   background: var(--gold);
   transform-origin: center;
-  animation: wave 900ms ease-in-out infinite;
-  animation-delay: calc(var(--k, 0) * -110ms);
-}
-.voice-bars i:nth-child(1) { --k: 1; }
-.voice-bars i:nth-child(2) { --k: 5; }
-.voice-bars i:nth-child(3) { --k: 2; }
-.voice-bars i:nth-child(4) { --k: 7; }
-.voice-bars i:nth-child(5) { --k: 3; }
-.voice-bars i:nth-child(6) { --k: 8; }
-.voice-bars i:nth-child(7) { --k: 4; }
-.voice-bars i:nth-child(8) { --k: 6; }
-.voice-bars i:nth-child(9) { --k: 0; }
-@keyframes wave {
-  0%, 100% { transform: scaleY(0.2); }
-  50% { transform: scaleY(1); }
+  transform: scaleY(0.2);
+  /* heights are written from JS (src/app/voice.ts) from the same level the butterfly receives */
+  transition: transform 40ms linear;
 }
 .voice-label {
   color: var(--gold-hi);
   font-size: 14px;
   white-space: nowrap;
 }
-@media (prefers-reduced-motion: reduce) {
-  .voice-bars i {
-    animation: none;
-    transform: scaleY(0.6);
-  }
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .voice-bars i {
+  transition: none;
 }
 
 @media (max-width: 520px) {

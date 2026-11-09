@@ -101,8 +101,9 @@ describe('perch lifecycle', () => {
     const b = box(host, 'kpi', { left: 400, top: 300, width: 200, height: 60 });
     step(120);
     const m = /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/.exec((layer.firstElementChild as HTMLElement).style.transform);
-    expect(Number(m?.[1])).toBeCloseTo(410, 0);
-    expect(Number(m?.[2])).toBeCloseTo(310, 0);
+    // perched micro-motion is allowed to wander by x+-2 / y+-1
+    expect(Math.abs(Number(m?.[1]) - 382)).toBeLessThanOrEqual(3);
+    expect(Math.abs(Number(m?.[2]) - 312)).toBeLessThanOrEqual(2);
     expect(b.isConnected).toBe(true);
   });
 
@@ -185,13 +186,13 @@ describe('reduced motion', () => {
       const m = /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/.exec((layer.firstElementChild as HTMLElement).style.transform);
       return [Number(m?.[1]), Number(m?.[2])];
     };
-    expect(pt()[0]).toBeCloseTo(410, 0); // not relocated home (900, 700)
-    expect(pt()[1]).toBeCloseTo(310, 0);
+    expect(pt()[0]).toBeCloseTo(382, 0); // not relocated home (900, 700)
+    expect(pt()[1]).toBeCloseTo(312, 0);
     // and it is perched on b: moving b is followed
     mockRect(b, { left: 500, top: 500, width: 200, height: 60 });
     await vi.advanceTimersByTimeAsync(300);
     step(400);
-    expect(pt()[0]).toBeCloseTo(510, 0);
+    expect(pt()[0]).toBeCloseTo(482, 0);
   });
 
   it('stops the rAF loop when settled and wakes on scroll', async () => {
@@ -218,6 +219,46 @@ describe('reduced motion', () => {
     step(400);
     expect(queue.size).toBe(0);
     const m = /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/.exec((layer.firstElementChild as HTMLElement).style.transform);
-    expect(Number(m?.[1])).toBeCloseTo(310, 0);
+    expect(Number(m?.[1])).toBeCloseTo(282, 0);
   });
 });
+
+describe('settle + attitude', () => {
+  it('reduced motion with voice mode perched: the loop goes to sleep (shared settle targets)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    bf = createButterfly(layer, { reducedMotion: true, home: () => ({ x: 500, y: 400 }) });
+    const host = document.getElementById('host') as HTMLElement;
+    const a = box(host, 'a');
+    const p = bf.flyTo(a, { side: 'inside-top-left' });
+    await vi.advanceTimersByTimeAsync(400);
+    step(5);
+    await p;
+    bf.setMode('voice');
+    bf.setVoiceLevel(0.6);
+    step(600);
+    expect(queue.size).toBe(0);
+  });
+  it('combined body rotation never exceeds 20 degrees in flight, wings turn asymmetric', () => {
+    bf = createButterfly(layer, { reducedMotion: false, home: () => ({ x: 100, y: 600 }), seed: 3 });
+    bf.spark({ x: 0, y: 0 }); // head kick
+    void bf.flyTo({ x: 160, y: 120 });
+    const sprite = layer.querySelector('.bf-sprite') as HTMLElement;
+    let maxRot = 0;
+    let asym = 0;
+    for (let i = 0; i < 80; i++) {
+      step(1);
+      const m = /rotate\(([-\d.]+)deg\)/.exec(sprite.style.transform);
+      maxRot = Math.max(maxRot, Math.abs(Number(m?.[1] ?? 0)));
+      const ws = layer.querySelectorAll<HTMLElement>('.bf-sprite [style*="rotateY"]');
+      if (ws.length >= 2) {
+        const a1 = Math.abs(Number(/rotateY\(([-\d.]+)deg\)/.exec(ws[0].style.transform)?.[1] ?? 0));
+        const a2 = Math.abs(Number(/rotateY\(([-\d.]+)deg\)/.exec(ws[1].style.transform)?.[1] ?? 0));
+        asym = Math.max(asym, Math.abs(a1 - a2));
+      }
+    }
+    expect(maxRot).toBeLessThanOrEqual(20.01);
+    expect(maxRot).toBeGreaterThan(1);
+    expect(asym).toBeGreaterThan(0.5);
+  });
+});
+

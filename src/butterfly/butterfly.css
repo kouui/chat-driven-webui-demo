@@ -8,16 +8,28 @@
   overflow: hidden;
 }
 
+/* Effects canvas (stardust, silk, ripples): one canvas under the butterfly, never interactive. */
+.bf-fx {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* Outer wrapper: position only (translate3d is written from JS). */
 .bf-root {
   position: absolute;
+  z-index: 1;
   left: 0;
   top: 0;
   width: 0;
   height: 0;
   will-change: transform;
   /* Fades out while the perch target is scrolled out of its `within` container. */
-  transition: opacity 200ms linear;
+  transition: opacity calc(200ms * var(--tm, 1)) linear;
 }
 
 /* Fade wrapper: used for the reduced-motion cross-fade. */
@@ -46,6 +58,11 @@
   overflow: visible;
 }
 
+.bf-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 /* Wing flap transforms are written from JS each frame; the pivot is the body axis. */
 .bf-wing {
   transform-box: view-box;
@@ -54,15 +71,15 @@
 
 /* ---- Guide: dim (one-shot transition, not a continuous animation) ---- */
 .bf-dimlayer {
-  transition: opacity 280ms ease;
+  transition: opacity calc(280ms * var(--tm, 1)) ease;
 }
 .bf-dimlayer.bf-dim {
   opacity: 0.38;
 }
 
-/* ---- Guide: one-shot gold pulse ring (~800ms, class is removed by JS) ---- */
+/* ---- Guide: one-shot gold pulse ring (600ms x --tm, class is removed by JS) ---- */
 .bf-pulse {
-  animation: bf-pulse-ring 800ms ease-out 1;
+  animation: bf-pulse-ring calc(600ms * var(--tm, 1)) ease-out 1;
 }
 
 @keyframes bf-pulse-ring {
@@ -77,17 +94,8 @@
   }
 }
 
-/* Reduced motion: no animation, a static outline for the same 800ms. */
-@media (prefers-reduced-motion: reduce) {
-  .bf-pulse {
-    animation: none;
-    outline: 2px solid rgba(245, 199, 106, 0.9);
-    outline-offset: 3px;
-  }
-  .bf-dimlayer {
-    transition: none;
-  }
-}
+/* Reduced motion: no animation, a static outline for the same 600ms.
+   Driven by the html.bf-reduced class (the app's motion preference), never by the OS media query. */
 .bf-reduced .bf-pulse {
   animation: none;
   outline: 2px solid rgba(245, 199, 106, 0.9);

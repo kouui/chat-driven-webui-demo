@@ -14,6 +14,20 @@ export const dict: Record<string, Row> = {
   'lang.en': ['English', 'English', 'English (英語)'],
   'lang.ja': ['日本語', '日本語 (Japanese)', '日本語'],
 
+  // ---- motion preference (A1)
+  'motion.label': ['动效', 'Motion', 'モーション'],
+  'motion.state.full': ['动效：完整', 'Motion: full', 'モーション：フル'],
+  'motion.state.reduced': ['动效：简化', 'Motion: reduced', 'モーション：簡易'],
+  'motion.notice': [
+    '系统已开启"减少动态效果"，当前为简化动画。',
+    'Your system has "reduce motion" on, so animations are simplified.',
+    'システムで「視覚効果を減らす」がオンのため、簡易アニメーションで表示しています。',
+  ],
+  'motion.enable': ['开启完整动效', 'Enable full motion', 'フルモーションを有効にする'],
+  'motion.dismiss': ['关闭提示', 'Dismiss', '閉じる'],
+  'announce.motion.full': ['已开启完整动效', 'Full motion is on', 'フルモーションをオンにしました'],
+  'announce.motion.reduced': ['已切换为简化动效', 'Reduced motion is on', '簡易モーションに切り替えました'],
+
   // ---- home
   'home.title': ['你想了解什么？', 'What would you like to see?', '何を見たいですか？'],
   'home.hint': [

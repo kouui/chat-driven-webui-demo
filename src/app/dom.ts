@@ -81,4 +81,3 @@ export function raf2(fn: () => void): void {
 }
 
 export const isMobile = (): boolean => window.matchMedia('(max-width: 768px)').matches;
-export const prefersReducedMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;

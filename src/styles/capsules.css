@@ -93,20 +93,44 @@
 .center-zone.enter .capsule-list li,
 .center-zone.enter .center-prompt {
   animation: capsule-in var(--t-med) var(--ease) both;
-  animation-delay: calc(var(--i, 0) * 60ms);
+  animation-delay: calc(var(--enter-delay, 0ms) + var(--i, 0) * 60ms * var(--tm));
 }
+/* the touched capsule brightens at once (within one frame), before anything else moves */
+.capsule.is-sent {
+  background: rgba(245, 199, 106, 0.3);
+  border-color: var(--gold-hi);
+  color: var(--gold-hi);
+  box-shadow: 0 0 30px rgba(245, 199, 106, 0.5);
+}
+/* candidates / suggestions held back until the butterfly passes over them */
+.center-zone.sweep li,
+.center-zone.sweep .center-prompt {
+  transition: opacity calc(240ms * var(--tm)) var(--ease), transform calc(240ms * var(--tm)) var(--ease);
+}
+.center-zone.sweep [data-hold] {
+  opacity: 0;
+  transform: translateY(8px);
+}
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .center-zone.sweep li,
+html.motion-reduced .center-zone.sweep .center-prompt {
+  transition-duration: 150ms;
+}
+html.motion-reduced .center-zone.sweep [data-hold] {
+  transform: none;
+}
+
 @keyframes capsule-in {
   from {
     opacity: 0;
     transform: translateY(8px);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .center-zone.enter .capsule-list li,
-  .center-zone.enter .center-prompt {
-    animation-name: fade-in;
-    animation-delay: 0ms;
-  }
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .center-zone.enter .capsule-list li,
+html.motion-reduced .center-zone.enter .center-prompt {
+  animation-name: fade-in;
+  animation-delay: 0ms;
 }
 
 /* follow-up capsules under the page card */

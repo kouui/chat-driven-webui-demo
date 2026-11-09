@@ -28,10 +28,9 @@
     opacity: var(--o);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .star.tw {
-    animation: none;
-  }
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .star.tw {
+  animation: none;
 }
 
 .dim {
@@ -153,13 +152,29 @@
   gap: clamp(8px, 2vh, 18px);
   padding: 0 16px;
   text-align: center;
-  transition: opacity var(--t-med) var(--ease);
+  /* Coming back (a page closes) starts about 120ms into the close; `visibility` flips at once so it never blocks the fade. */
+  transition: opacity var(--t-med) var(--ease), filter var(--t-med) var(--ease), visibility 0s linear 0s;
 }
+body:not(.has-page):not(.overlay-wheel) .home {
+  transition-delay: calc(120ms * var(--tm)), calc(120ms * var(--tm)), 0s;
+}
+/* Going away (a page opens): fade over 220ms, and only then drop `visibility`. */
 body.has-page .home {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
+  /* no `filter` transition here: un-blurring a full-stage layer while it fades is costly and invisible at ~12% opacity */
+  transition: opacity var(--t-med) var(--ease), visibility 0s linear var(--t-med);
 }
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .home,
+html.motion-reduced body:not(.has-page):not(.overlay-wheel) .home {
+  transition: opacity 150ms linear, filter 150ms linear, visibility 0s;
+}
+html.motion-reduced body.has-page .home {
+  transition: opacity 150ms linear, visibility 0s linear 150ms;
+}
+
 .home-title {
   font-family: var(--font-display);
   font-weight: 600;
@@ -216,27 +231,44 @@ body.has-page .home {
 .page-wrap > * {
   pointer-events: auto;
 }
-.page-wrap.is-enter .page-card {
-  animation: card-in var(--t-med) var(--ease) both;
+/* Reveal states (set by src/app/pagecard.ts): shell = the frame, content = the page body, fu = the follow-ups.
+   Nothing here animates by itself: the choreography reveals each part when the butterfly gets there. */
+.page-wrap[data-shell="0"] .page-card {
+  opacity: 0;
+  pointer-events: none;
 }
-.page-wrap.is-switch.is-enter .page-card {
-  animation: card-fade 160ms linear both;
+.page-wrap[data-content="0"] .card-scroll:not(.card-ghost) {
+  opacity: 0;
 }
-@keyframes card-in {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.985);
+.followups {
+  transition: opacity calc(240ms * var(--tm)) var(--ease), transform calc(240ms * var(--tm)) var(--ease);
+}
+body.voice-nest .followups {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Phones: the card reaches down to the nest, so the card steps back while the ripples are up (the ripples and the
+   butterfly never compete with its text). */
+.page-card {
+  transition: opacity calc(200ms * var(--tm)) var(--ease);
+}
+@media (max-width: 768px) {
+  body.voice-nest .page-card {
+    opacity: 0.32;
   }
 }
-@keyframes card-fade {
-  from {
-    opacity: 0.35;
-  }
+.page-wrap[data-fu="0"] .followups {
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: none;
 }
-@media (prefers-reduced-motion: reduce) {
-  .page-wrap.is-enter .page-card {
-    animation-name: card-fade;
-  }
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .followups {
+  transition-duration: 150ms;
+}
+html.motion-reduced .page-wrap[data-fu="0"] .followups {
+  transform: none;
 }
 
 .scrim {
@@ -287,5 +319,22 @@ body.has-page .home {
   }
   .center-hint {
     display: none;
+  }
+}
+
+/* Voice nest: a tiny measurable anchor inside the input, so the butterfly and its pad follow resize / rotation.
+   The perch point is 24px above its top edge: 36px up gives the nest 60px above the input (46px on phones). */
+.voice-nest-anchor {
+  position: absolute;
+  left: calc(50% - 1px);
+  top: -36px;
+  width: 2px;
+  height: 2px;
+  pointer-events: none;
+  visibility: hidden;
+}
+@media (max-width: 768px) {
+  .voice-nest-anchor {
+    top: -22px;
   }
 }

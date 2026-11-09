@@ -22,12 +22,27 @@
           <span class="brand-local" data-i18n="brand.local"></span>
           <span class="brand-tag" data-i18n="brand.tagline"></span>
         </div>
+        <div class="topbar-tools">
+        <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="true" data-i18n-attr="aria-label:motion.label">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 12.5C10 7 5 5.5 4.5 8.5C4.1 11.1 7.9 12.9 12 12.5ZM12 12.5C14 7 19 5.5 19.5 8.5C19.9 11.1 16.1 12.9 12 12.5ZM11.6 13.1C8.6 13.5 5.6 15.7 7 18.1C8 19.8 10.6 18.9 11.6 13.1ZM12.4 13.1C15.4 13.5 18.4 15.7 17 18.1C16 19.8 13.4 18.9 12.4 13.1Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
+          <path class="motion-toggle-slash" d="M4 4l16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+        </button>
         <div class="lang" role="group" data-i18n-attr="aria-label:lang.label">
           <button type="button" data-lang="zh" lang="zh" aria-pressed="true" data-i18n-attr="aria-label:lang.zh" title="中文">中</button>
           <button type="button" data-lang="en" lang="en" aria-pressed="false" data-i18n-attr="aria-label:lang.en" title="English">EN</button>
           <button type="button" data-lang="ja" lang="ja" aria-pressed="false" data-i18n-attr="aria-label:lang.ja" title="日本語">日</button>
         </div>
+        </div>
       </header>
+
+      <!-- one-time notice: the OS asks for reduced motion and the user has not chosen yet -->
+      <div class="motion-notice" id="motion-notice" role="status" hidden>
+        <span class="motion-notice-text" id="motion-notice-text"></span>
+        <button type="button" class="motion-notice-go" id="motion-notice-go"></button>
+        <button type="button" class="motion-notice-x" id="motion-notice-x" data-i18n-attr="aria-label:motion.dismiss">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+        </button>
+      </div>
 
       <main class="stage" id="stage">
         <!-- home: ring + capsule area -->
@@ -41,6 +56,7 @@
         <!-- page card + follow-up capsules -->
         <div class="page-wrap" id="page-wrap" hidden>
           <article class="card page-card" id="page-card" role="region">
+            <span class="card-rim" id="page-rim" aria-hidden="true"></span>
             <button type="button" class="icon-btn card-close" id="page-close" data-i18n-attr="aria-label:page.close" title="Esc">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
             </button>
@@ -107,6 +123,9 @@
         </div>
       </footer>
     </div>
+
+    <!-- landing pads (src/app/pads.ts): under the butterfly, above the page -->
+    <div id="pad-layer" class="pad-layer" aria-hidden="true"></div>
 
     <!-- the butterfly lives here (created by src/butterfly) -->
     <div id="butterfly-layer" aria-hidden="true"></div>

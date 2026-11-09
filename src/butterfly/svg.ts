@@ -23,7 +23,20 @@ export interface ButterflyDom {
   sprite: HTMLElement; // bob / sink / tilt / scale
   svg: SVGSVGElement;
   /** Wing groups: right/left x upper/lower. Right wings rotate +θ, left wings -θ. */
-  wings: { ur: SVGGElement; ul: SVGGElement; lr: SVGGElement; ll: SVGGElement };
+  wings: WingSet;
+  /** Faint ghost-wing double (voice mode motion blur), drawn behind the wings. Hidden by default. */
+  ghost: WingSet;
+  ghostGroup: SVGGElement;
+  glow: SVGCircleElement;
+  /** Swallowtail filaments below the lower wings. `cross` 1 = crossed X (hovering), 0 = streaming; `sway` in -1..1. */
+  setTails(cross: number, sway: number): void;
+}
+
+export interface WingSet {
+  ur: SVGGElement;
+  ul: SVGGElement;
+  lr: SVGGElement;
+  ll: SVGGElement;
 }
 
 const UPPER = 'M50 47 C57 30 72 9 89 11 C99 13 99 31 91 43 C83 54 64 54 50 50 Z';
@@ -34,6 +47,7 @@ export function buildButterflyDom(): ButterflyDom {
   const gWing = `bf-grad-w-${id}`;
   const gBody = `bf-grad-b-${id}`;
   const gGlow = `bf-grad-g-${id}`;
+  const gTail = `bf-grad-t-${id}`;
 
   const defs = s('defs', {}, [
     s('radialGradient', { id: gWing, gradientUnits: 'userSpaceOnUse', cx: 50, cy: 46, r: 50 }, [
@@ -42,6 +56,11 @@ export function buildButterflyDom(): ButterflyDom {
       stop(1, '#B8862B'),
     ]),
     s('linearGradient', { id: gBody, x1: 0, y1: 0, x2: 0, y2: 1 }, [stop(0, '#FFF3C4'), stop(1, '#B8862B')]),
+    s('linearGradient', { id: gTail, gradientUnits: 'userSpaceOnUse', x1: 50, y1: 64, x2: 50, y2: 106 }, [
+      stop(0, '#FFF3C4', 1),
+      stop(0.6, '#FFF3C4', 0.7),
+      stop(1, '#F5C76A', 0),
+    ]),
     s('radialGradient', { id: gGlow, cx: 0.5, cy: 0.5, r: 0.5 }, [
       stop(0, '#F5C76A', 0.42),
       stop(0.55, '#F5C76A', 0.12),
@@ -86,10 +105,48 @@ export function buildButterflyDom(): ButterflyDom {
     s('circle', { cx: 50, cy: 35, r: 3.4, fill: '#FFF3C4' }),
   ]);
 
-  // Order: glow, lower wings, upper wings, body.
+  // Swallowtail filaments: two thin tails from the lower body. Hovering they cross into an X, in flight they sway.
+  const tailA = s('path', { class: 'bf-tail', fill: 'none', stroke: `url(#${gTail})`, 'stroke-width': 1.3, 'stroke-linecap': 'round' });
+  const tailB = s('path', { class: 'bf-tail', fill: 'none', stroke: `url(#${gTail})`, 'stroke-width': 1.3, 'stroke-linecap': 'round' });
+  const tails = s('g', { class: 'bf-tails' }, [tailA, tailB]);
+  let lastTail = '';
+  const setTails = (cross: number, sway: number): void => {
+    const key = cross.toFixed(2) + sway.toFixed(2);
+    if (key === lastTail) return;
+    lastTail = key;
+    const c = Math.min(1, Math.max(0, cross));
+    const w = sway * 5;
+    // A: starts left of the axis, ends right when crossed (X); B mirrored. Uncrossed they flow down and slightly out.
+    const endA = 46.5 + c * 11 + w * 0.6;
+    const endB = 53.5 - c * 11 + w * 0.6;
+    const midA = 44 + c * 9 + w * 0.3;
+    const midB = 56 - c * 9 + w * 0.3;
+    tailA.setAttribute('d', `M49 64 C${midA} 76 ${endA - 4 * (1 - c) + w} 88 ${endA} 104`);
+    tailB.setAttribute('d', `M51 64 C${midB} 76 ${endB + 4 * (1 - c) + w} 88 ${endB} 104`);
+  };
+  setTails(1, 0);
+
+  // Ghost wings: same shapes, hidden until voice mode.
+  const ghostGroup = s('g', { class: 'bf-ghost', opacity: 0 }, [
+    ...[ll, lr, ul, ur].map((w) => w.cloneNode(true) as SVGGElement),
+  ]);
+  const gs = ghostGroup.children;
+  const ghost: WingSet = {
+    ll: gs[0] as SVGGElement,
+    lr: gs[1] as SVGGElement,
+    ul: gs[2] as SVGGElement,
+    ur: gs[3] as SVGGElement,
+  };
+  for (const w of [ghost.ll, ghost.lr, ghost.ul, ghost.ur]) w.setAttribute('class', 'bf-wing bf-wing-ghost');
+
+  const glow = s('circle', { class: 'bf-glow', cx: 50, cy: 50, r: 62, fill: `url(#${gGlow})` });
+
+  // Order: glow, tails, ghost wings, lower wings, upper wings, body.
   const svg = s('svg', { class: 'bf-svg', viewBox: '0 0 100 100', width: 64, height: 64, focusable: 'false', 'aria-hidden': 'true' }, [
     defs,
-    s('circle', { class: 'bf-glow', cx: 50, cy: 50, r: 62, fill: `url(#${gGlow})` }),
+    glow,
+    tails,
+    ghostGroup,
     ll,
     lr,
     ul,
@@ -107,5 +164,5 @@ export function buildButterflyDom(): ButterflyDom {
   root.className = 'bf-root';
   root.appendChild(fade);
 
-  return { root, fade, sprite, svg, wings: { ur, ul, lr, ll } };
+  return { root, fade, sprite, svg, wings: { ur, ul, lr, ll }, ghost, ghostGroup, glow, setTails };
 }

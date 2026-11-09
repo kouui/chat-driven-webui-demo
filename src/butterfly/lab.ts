@@ -2,6 +2,7 @@
 import './butterfly.css';
 import { createButterfly, createGuide } from './index';
 import type { PerchSide } from '../types';
+import type { ButterflyFx } from './butterfly';
 
 const css = `
   :root { color-scheme: dark; }
@@ -31,6 +32,11 @@ const css = `
     border-radius: 12px; padding: 12px; background: rgba(14,19,31,.5); }
   .scroller .box { margin-bottom: 12px; min-height: 64px; }
   #log { color: #8A94A6; font-size: 12px; min-height: 18px; }
+  #hud { position: fixed; right: 10px; bottom: 10px; z-index: 9999; background: rgba(5,7,15,.82); border: 1px solid rgba(245,199,106,.3);
+    border-radius: 8px; padding: 6px 10px; font: 12px/1.4 ui-monospace, monospace; color: #FFF3C4; pointer-events: none; white-space: pre; }
+  #srcbox { display: inline-block; padding: 10px 16px; border: 1px solid rgba(245,199,106,.5); border-radius: 999px; background: rgba(245,199,106,.08); }
+  input[type=range] { width: 160px; }
+  input[type=number] { width: 72px; background: rgba(14,19,31,.9); color: #E9E4D4; border: 1px solid rgba(245,199,106,.3); border-radius: 6px; padding: 6px; font: inherit; }
 `;
 const style = document.createElement('style');
 style.textContent = css;
@@ -56,6 +62,27 @@ stage.innerHTML = `
         <option>left</option><option>right</option><option>bottom</option><option>inside-top-left</option>
       </select>
     </label>
+  </div>
+  <div class="row" id="fly">
+    <button data-act="fly-long">Long flight (trail)</button>
+    <button data-act="fly-back">Long flight back</button>
+    <button data-act="fly-carry">Short carry (80px)</button>
+    <button data-act="fly-light">Light trail</button>
+    <button data-act="fly-none">No trail</button>
+    <button data-act="nomatch">No match (loop + tilt)</button>
+    <label>minDuration <input type="number" id="mind" value="0" step="100" min="0" /></label>
+    <label><input type="checkbox" id="underline" checked /> Underline + reveal</label>
+  </div>
+  <div class="row">
+    <span id="srcbox">spark source</span>
+    <button data-act="spark">Spark</button>
+    <button data-act="spark-fly">Spark + fly to Box B</button>
+    <button data-act="far-spark-fly">Far spark (bottom-right) + fly to Box B</button>
+    <button data-act="slide-fly">Fly to Box D while it slides 120px</button>
+    <button data-act="voice">Voice mode on/off</button>
+    <label>level <input type="range" id="level" min="0" max="1" step="0.01" value="0.5" /></label>
+    <label><input type="checkbox" id="auto" checked /> auto envelope</label>
+    <label>Perf tier: <b id="tier">0</b></label>
   </div>
   <div class="ring" id="ring">home ring</div>
   <div class="grid" id="grid">
@@ -83,22 +110,70 @@ const reducedBox = document.getElementById('reduced') as HTMLInputElement;
 const dimBox = document.getElementById('dim') as HTMLInputElement;
 const pulseBox = document.getElementById('pulse') as HTMLInputElement;
 const sideSel = document.getElementById('side') as HTMLSelectElement;
+const minDur = document.getElementById('mind') as HTMLInputElement;
+const underlineBox = document.getElementById('underline') as HTMLInputElement;
+const levelEl = document.getElementById('level') as HTMLInputElement;
+const autoEl = document.getElementById('auto') as HTMLInputElement;
+const srcbox = document.getElementById('srcbox') as HTMLElement;
+let voice = false;
 
-const butterfly = createButterfly(layer, {
-  reducedMotion: reducedBox.checked,
+let rafCount = 0;
+let costSum = 0;
+let stats = { rafPerSec: 0, frameMs: 0, tier: 0, live: 0 };
+const nativeRaf = window.requestAnimationFrame.bind(window);
+window.requestAnimationFrame = (cb: FrameRequestCallback): number =>
+  nativeRaf((t) => {
+    const t0 = performance.now();
+    rafCount++;
+    cb(t);
+    costSum += performance.now() - t0;
+  });
+
+const butterfly: ButterflyFx = createButterfly(layer, {
+  reducedMotion: reducedBox.checked, // the lab owns the preference (never the OS query)
+  onTarget: (el, phase) => ((window as unknown as { __targets?: string[] }).__targets ??= []).push(`${phase}:${el?.getAttribute('data-perch') ?? 'null'}`),
   home: () => {
     const r = ring.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   },
 });
 const guide = createGuide(butterfly, { dimLayer: stage });
+const hud = document.createElement('div');
+hud.id = 'hud';
+document.body.appendChild(hud);
 
-(window as unknown as { __lab: unknown }).__lab = { butterfly, guide };
+// FPS + rAF counter + per-frame JS cost (the butterfly's single loop is the only rAF user in this page).
+let lastT = performance.now();
+let lastRaf = rafCount;
+let lastCost = costSum;
+setInterval(() => {
+  const now = performance.now();
+  const dtS = (now - lastT) / 1000;
+  const n = rafCount - lastRaf;
+  const cost = n > 0 ? (costSum - lastCost) / n : 0;
+  stats = { rafPerSec: n / dtS, frameMs: cost, tier: butterfly.perfTier(), live: butterfly.fxLive() };
+  hud.textContent = `rAF/s ${stats.rafPerSec.toFixed(0)}  frame ${cost.toFixed(2)}ms\ntier ${stats.tier}  particles ${stats.live}`;
+  (document.getElementById('tier') as HTMLElement).textContent = String(stats.tier);
+  lastT = now;
+  lastRaf = rafCount;
+  lastCost = costSum;
+}, 500);
+
+(window as unknown as { __lab: unknown }).__lab = { butterfly, guide, stats: () => stats };
 
 async function focusBox(el: HTMLElement): Promise<boolean> {
   log.textContent = 'flying...';
   const within = el.closest<HTMLElement>('.scroller') ?? undefined;
-  const ok = await guide.focus(el, { side: sideSel.value as PerchSide, dim: dimBox.checked, pulse: pulseBox.checked, within });
+  const ok = await guide.focus(el, {
+    side: sideSel.value as PerchSide,
+    dim: dimBox.checked,
+    pulse: pulseBox.checked,
+    within,
+    minDuration: Number(minDur.value) || undefined,
+    underline: underlineBox.checked,
+    reveal: underlineBox.checked ? () => new Promise<void>((r) => setTimeout(r, 160)) : undefined,
+    onApproach: () => (log.textContent = 'approach (<= 300ms left)'),
+  });
   log.textContent = ok ? 'landed' : 'cancelled';
   return ok;
 }
@@ -122,6 +197,64 @@ stage.addEventListener('click', async (ev) => {
         break;
       case 'perched':
         butterfly.setMode('perched');
+        break;
+      case 'fly-long':
+      case 'fly-back': {
+        const far = btn.dataset.act === 'fly-long';
+        void butterfly.flyTo(
+          { x: far ? window.innerWidth - 90 : 90, y: far ? window.innerHeight - 140 : 140 },
+          { side: 'top', minDuration: Number(minDur.value) || undefined },
+        );
+        break;
+      }
+      case 'fly-carry': {
+        const p = butterfly.position();
+        void butterfly.flyTo({ x: p.x + 60, y: p.y + 55 });
+        break;
+      }
+      case 'fly-light':
+      case 'fly-none': {
+        const p = butterfly.position();
+        void butterfly.flyTo(
+          { x: p.x > window.innerWidth / 2 ? 140 : window.innerWidth - 140, y: p.y > window.innerHeight / 2 ? 200 : window.innerHeight - 200 },
+          { trail: btn.dataset.act === 'fly-light' ? 'light' : 'none' },
+        );
+        break;
+      }
+      case 'nomatch': {
+        const r = ring.getBoundingClientRect();
+        void butterfly.flyTo({ x: r.left + r.width / 2 + 120, y: r.top + 40 }, { trail: 'light' }).then((ok) => ok && undefined);
+        butterfly.tilt();
+        break;
+      }
+      case 'spark':
+        butterfly.spark(srcbox);
+        break;
+      case 'spark-fly': {
+        const b = document.querySelector<HTMLElement>('[data-perch="b"]');
+        butterfly.spark(srcbox);
+        if (b) void focusBox(b);
+        break;
+      }
+      case 'far-spark-fly': {
+        // A trigger far from the butterfly: a visible pick-up streak, take-off waits for it (see index.ts).
+        const b = document.querySelector<HTMLElement>('[data-perch="b"]');
+        butterfly.spark({ x: window.innerWidth - 80, y: window.innerHeight - 60 });
+        if (b) void focusBox(b);
+        break;
+      }
+      case 'slide-fly': {
+        // The target moves while the butterfly flies: no replan spikes, peak/mean stays <= 1.7.
+        const d = document.querySelector<HTMLElement>('[data-perch="d"]');
+        if (!d) break;
+        d.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(120px)' }], { duration: 500, easing: 'ease-out', fill: 'forwards' });
+        void focusBox(d);
+        break;
+      }
+      case 'voice':
+        voice = !voice;
+        if (voice) butterfly.setMode('voice');
+        else butterfly.setMode('idle');
         break;
       case 'rerender': {
         // Replace the grid's children with identical markup: the perched element is disconnected,
@@ -152,6 +285,24 @@ stage.addEventListener('click', async (ev) => {
 });
 
 reducedBox.addEventListener('change', () => butterfly.setReducedMotion(reducedBox.checked));
+levelEl.addEventListener('input', () => butterfly.setVoiceLevel(Number(levelEl.value)));
+// Fake voice envelope: syllables ~2.6 Hz with slow modulation and word gaps, attack 50ms / release 180ms.
+let env = 0;
+let envT = performance.now();
+let gapUntil = 0;
+setInterval(() => {
+  if (!voice || !autoEl.checked) return;
+  const now = performance.now();
+  const dt = now - envT;
+  envT = now;
+  const t = now / 1000;
+  if (now > gapUntil && Math.random() < 0.012) gapUntil = now + 120 + Math.random() * 140;
+  const syl = 0.5 + 0.5 * Math.sin(2 * Math.PI * 2.6 * t + 0.8 * Math.sin(2 * Math.PI * 0.7 * t));
+  const raw = now < gapUntil ? 0.08 : 0.15 + 0.85 * syl * (0.75 + 0.25 * Math.sin(t * 1.3));
+  env += (raw - env) * (1 - Math.exp(-dt / (raw > env ? 50 : 180)));
+  levelEl.value = env.toFixed(2);
+  butterfly.setVoiceLevel(env);
+}, 16);
 // Typing in the lab (any key) shows the listening mode quickly.
 window.addEventListener('keydown', (e) => {
   if (e.key === 'l') butterfly.setMode('listening');

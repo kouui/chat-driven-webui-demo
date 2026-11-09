@@ -5,7 +5,16 @@ export interface GuideOptions {
   dimLayer?: HTMLElement;
 }
 
-const PULSE_MS = 800;
+type FocusOpts = PerchOpts & {
+  dim?: boolean;
+  pulse?: boolean;
+  underline?: boolean;
+  reveal?: () => void | Promise<void>;
+};
+
+const PULSE_MS = 600;
+/** The pulse lasts PULSE_MS at tempo 1 (`--tempo` scales the CSS animation the same way). A plain Butterfly (fake) has tempo 1. */
+const tempoOf = (b: Butterfly): number => (b as Butterfly & { timeScale?: () => number }).timeScale?.() ?? 1;
 
 // Only one element may hold the pulse at any time, across all guides.
 let pulseEl: Element | null = null;
@@ -18,14 +27,26 @@ function clearPulse(): void {
   pulseEl = null;
 }
 
-function startPulse(el: Element): void {
+function startPulse(el: Element, ms: number): void {
   clearPulse();
   pulseEl = el;
   el.classList.add('bf-pulse');
-  pulseTimer = window.setTimeout(clearPulse, PULSE_MS);
+  pulseTimer = window.setTimeout(clearPulse, ms);
 }
 
-export function createGuide(butterfly: Butterfly, opts: GuideOptions = {}): Guide {
+/** createButterfly() returns this extension; a plain Butterfly (tests, fakes) simply has no underline. */
+function drawUnderline(b: Butterfly, el: Element): void {
+  (b as Butterfly & { underline?: (el: Element) => void }).underline?.(el);
+}
+
+/** The shared Guide plus `cancel()`: invalidate pending reveal / underline / pulse continuations (the app binds it to its operation token). */
+export type CancellableGuide = Guide & { cancel(): void };
+
+function clearUnderline(b: Butterfly): void {
+  (b as Butterfly & { clearUnderline?: () => void }).clearUnderline?.();
+}
+
+export function createGuide(butterfly: Butterfly, opts: GuideOptions = {}): CancellableGuide {
   const dimLayer = opts.dimLayer;
   dimLayer?.classList.add('bf-dimlayer');
   let seq = 0;
@@ -35,15 +56,38 @@ export function createGuide(butterfly: Butterfly, opts: GuideOptions = {}): Guid
   };
 
   return {
-    async focus(el: Element, o: PerchOpts & { dim?: boolean; pulse?: boolean } = {}): Promise<boolean> {
+    async focus(el: Element, o: FocusOpts = {}): Promise<boolean> {
       const id = ++seq;
       clearPulse();
-      // Order: dim -> fly -> content -> one pulse.
+      // Order: dim -> fly -> reveal (content) -> underline + one pulse. A newer focus/release cancels every later step.
       setDim(!!o.dim && !!dimLayer);
-      const landed = await butterfly.flyTo(el, { side: o.side, within: o.within });
+      const landed = await butterfly.flyTo(el, {
+        side: o.side,
+        within: o.within,
+        minDuration: o.minDuration,
+        maxDuration: o.maxDuration,
+        onApproach: o.onApproach,
+        trail: o.trail,
+      });
       if (!landed || id !== seq || !el.isConnected) return false;
-      if (o.pulse !== false) startPulse(el);
+      if (o.reveal) {
+        try {
+          await o.reveal();
+        } catch (e) {
+          console.error(e);
+        }
+        if (id !== seq || !el.isConnected) return false;
+      }
+      if (o.underline) drawUnderline(butterfly, el);
+      if (o.pulse !== false) startPulse(el, document.documentElement.classList.contains('bf-reduced') ? PULSE_MS : PULSE_MS / tempoOf(butterfly)); // reduced motion keeps its 600ms outline
       return true;
+    },
+
+    cancel(): void {
+      seq++;
+      setDim(false);
+      clearPulse();
+      clearUnderline(butterfly);
     },
 
     release(): Promise<boolean> {

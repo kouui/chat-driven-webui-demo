@@ -1,4 +1,7 @@
+import { currentOp } from './motion';
+
 let live: HTMLElement;
+let announceSeq = 0;
 let toastEl: HTMLElement;
 let toastTimer = 0;
 
@@ -9,8 +12,12 @@ export function initAnnounce(liveEl: HTMLElement, toast: HTMLElement): void {
 
 /** Screen-reader announcement (polite live region). */
 export function announce(msg: string): void {
+  const id = ++announceSeq;
+  const op = currentOp();
   live.textContent = '';
   requestAnimationFrame(() => {
+    // cancellable: a newer announcement, or a newer user action (operation), makes this one stale
+    if (id !== announceSeq || op !== currentOp()) return;
     live.textContent = msg;
   });
 }

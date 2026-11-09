@@ -7,6 +7,7 @@ import './styles/card.css';
 import './styles/wheel.css';
 import './styles/tutorial.css';
 import './styles/toast.css';
+import './styles/pads.css';
 import './butterfly/butterfly.css';
 import { startApp } from './app/app';
 

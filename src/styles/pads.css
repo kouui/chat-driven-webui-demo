@@ -1,0 +1,245 @@
+/* Landing pads (A2): two thin gold rings where the butterfly lands, under the butterfly layer.
+   dim -> brighten + slow rotation on approach -> one soft ripple at landing -> lit while perched -> dim on take-off. */
+.pad-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 8990; /* above the page and the overlays, below #butterfly-layer (9000) */
+  pointer-events: none;
+  overflow: hidden;
+}
+.pad {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
+  border-radius: 50%;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity calc(260ms * var(--tm)) ease-out, visibility 0s linear calc(260ms * var(--tm));
+  will-change: transform;
+}
+.pad.is-on {
+  opacity: 0.25;
+  visibility: visible;
+  transition: opacity calc(260ms * var(--tm)) ease-out, visibility 0s;
+}
+.pad::before,
+.pad::after,
+.pad > i {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+/* outer ring (thin) with a faint glow, inner ring (finer, dashed so the rotation reads) */
+.pad::before {
+  inset: 0;
+  border: 1px solid var(--gold);
+  box-shadow: 0 0 12px rgba(245, 199, 106, 0.35), inset 0 0 8px rgba(245, 199, 106, 0.12);
+}
+.pad > i {
+  inset: 7px;
+  border: 1px dashed var(--gold-hi);
+  border-width: 1px;
+}
+/* one soft ripple at landing */
+.pad::after {
+  inset: 0;
+  border: 1px solid var(--gold-hi);
+  opacity: 0;
+}
+.pad.is-near {
+  opacity: 0.85;
+}
+.pad.is-near > i {
+  animation: pad-spin calc(3.2s * var(--tm)) linear infinite;
+}
+.pad.is-lit {
+  opacity: 0.6;
+}
+.pad.is-ripple::after {
+  animation: pad-ripple calc(720ms * var(--tm)) ease-out 1;
+}
+.pad.is-ghost {
+  opacity: 0.18;
+}
+@keyframes pad-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pad-ripple {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.3);
+  }
+}
+/* Reduced motion: static pads, dim or lit; no rotation, no ripple. */
+html.motion-reduced .pad,
+html.motion-reduced .pad.is-on {
+  transition: none;
+}
+html.motion-reduced .pad.is-near > i {
+  animation: none;
+}
+html.motion-reduced .pad.is-ripple::after {
+  animation: none;
+}
+html.motion-reduced .pad.is-near {
+  opacity: 0.6;
+}
+
+/* The home ring is the home pad: the same states, drawn on the ring itself. */
+.ring {
+  transition: border-color calc(260ms * var(--tm)) ease-out, box-shadow calc(260ms * var(--tm)) ease-out;
+}
+.ring.is-near {
+  border-color: rgba(245, 199, 106, 0.5);
+  box-shadow: 0 0 70px rgba(245, 199, 106, 0.2), inset 0 0 40px rgba(245, 199, 106, 0.1);
+}
+.ring.is-near::after {
+  animation: pad-spin calc(14s * var(--tm)) linear infinite;
+}
+.ring.is-lit {
+  border-color: rgba(245, 199, 106, 0.38);
+  box-shadow: 0 0 64px rgba(245, 199, 106, 0.14), inset 0 0 40px rgba(245, 199, 106, 0.07);
+}
+.ring.is-ripple::before {
+  animation: ring-ripple calc(760ms * var(--tm)) ease-out 1;
+}
+@keyframes ring-ripple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 199, 106, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 26px rgba(245, 199, 106, 0);
+  }
+}
+html.motion-reduced .ring.is-near::after,
+html.motion-reduced .ring.is-ripple::before {
+  animation: none;
+}
+
+/* ---- motion toggle (top bar, next to the language switcher) ---- */
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.motion-toggle {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(10, 14, 24, 0.6);
+  color: var(--gold);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.motion-toggle:hover {
+  color: var(--gold-hi);
+  border-color: rgba(245, 199, 106, 0.4);
+}
+.motion-toggle[aria-pressed="true"] {
+  background: rgba(245, 199, 106, 0.16);
+  color: var(--gold-hi);
+}
+.motion-toggle .motion-toggle-slash {
+  opacity: 0;
+}
+.motion-toggle.is-reduced .motion-toggle-slash {
+  opacity: 1;
+}
+
+/* ---- one-time notice ---- */
+.motion-notice {
+  position: absolute;
+  z-index: var(--z-toast);
+  top: calc(env(safe-area-inset-top, 0px) + var(--topbar-h));
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(94vw, 640px);
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 8px 8px 8px 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(245, 199, 106, 0.4);
+  background: rgba(14, 19, 31, 0.94);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.motion-notice[hidden] {
+  display: none;
+}
+.motion-notice-go {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: rgba(245, 199, 106, 0.18);
+  color: var(--gold-hi);
+  font-size: 14px;
+}
+.motion-notice-go:hover {
+  background: rgba(245, 199, 106, 0.3);
+}
+.motion-notice-x {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+.motion-notice-x:hover {
+  color: var(--text);
+}
+
+/* Phones: one compact row between the top bar and the home headline (it must never cover the headline or the capsules). */
+@media (max-width: 480px) {
+  .motion-notice {
+    top: calc(env(safe-area-inset-top, 0px) + var(--topbar-h) + 2px);
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 6px;
+    border-radius: 16px;
+    padding: 3px 3px 3px 12px;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+  .motion-notice-text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  
+  .motion-notice-go {
+    flex: none;
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+  .motion-notice-x {
+    flex: none;
+    width: 36px;
+    height: 36px;
+  }
+}

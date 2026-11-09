@@ -47,9 +47,9 @@
     bottom: calc(var(--bar-space) + 8px + 64px);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .toast,
-  .toast.is-show {
-    transform: translate(-50%, 0);
-  }
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .toast,
+html.motion-reduced .toast.is-show {
+  transform: translate(-50%, 0);
 }
+

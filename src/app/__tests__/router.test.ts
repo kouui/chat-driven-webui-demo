@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { initRouter, leaveToHome, noteOverlayOpened, writeRoute } from '../router';
+import { initRouter, leaveToHome, writeRoute } from '../router';
 import type { Route, RouteCtx } from '../router';
 
 const calls: { r: Route; ctx: RouteCtx }[] = [];
@@ -10,46 +10,27 @@ beforeAll(() => {
   initRouter((r, ctx) => calls.push({ r, ctx }));
 });
 afterEach(() => {
+  history.replaceState(null, '', '#/');
   calls.length = 0;
   vi.useRealTimers();
 });
 
-describe('router: the latest action wins over a pending close', () => {
-  it('an overlay opened during the close survives the home completion (keepOverlay)', async () => {
+// The visible close starts before history is touched (navigate.ts); the router only reconciles history afterwards and
+// never re-applies the home view: its completion is not a newer user action.
+describe('router: history catches up with a close that has already started', () => {
+  it('a plain close steps back and shows nothing when the popstate arrives', async () => {
     writeRoute({ id: 'risk' }, true); // home -> page pushes our entry
     const done = popped();
-    expect(leaveToHome({ source: 'system' })).toBe(true);
-    noteOverlayOpened(); // the wheel was opened before the popstate
+    expect(leaveToHome()).toBe(true);
     await done;
-    expect(calls).toHaveLength(1);
-    expect(calls[0].r.id).toBeNull();
-    expect(calls[0].ctx.keepOverlay).toBe(true);
+    expect(calls).toHaveLength(0);
+    expect(location.hash === '' || location.hash === '#/').toBe(true);
   });
 
-  it('a plain close carries no keepOverlay', async () => {
+  it('a page opened during the close is re-pushed instead of leaving history on home', async () => {
     writeRoute({ id: 'risk' }, true);
     const done = popped();
-    leaveToHome({ source: 'system' });
-    await done;
-    expect(calls[0].ctx.keepOverlay).toBeFalsy();
-  });
-
-  it('a newer close cancels the overlay the older one was keeping', async () => {
-    writeRoute({ id: 'risk' }, true);
-    const done = popped();
-    leaveToHome({ source: 'system' });
-    noteOverlayOpened();
-    leaveToHome({ source: 'text' }); // coalesces, newest wins
-    await done;
-    expect(calls).toHaveLength(1);
-    expect(calls[0].ctx.source).toBe('text');
-    expect(calls[0].ctx.keepOverlay).toBeFalsy();
-  });
-
-  it('a page opened during the close is re-pushed instead of showing home', async () => {
-    writeRoute({ id: 'risk' }, true);
-    const done = popped();
-    leaveToHome({ source: 'system' });
+    leaveToHome();
     writeRoute({ id: 'returns' }, false);
     await done;
     expect(calls).toHaveLength(0);
@@ -57,18 +38,28 @@ describe('router: the latest action wins over a pending close', () => {
     expect((history.state as { aurea?: boolean }).aurea).toBe(true);
   });
 
-  it('a popstate that never arrives is applied by the safety timer', () => {
+  it('a newer close cancels the page that was waiting to replace it', async () => {
+    writeRoute({ id: 'risk' }, true);
+    const done = popped();
+    leaveToHome();
+    writeRoute({ id: 'returns' }, false);
+    leaveToHome(); // coalesces into the pending traversal
+    await done;
+    expect(calls).toHaveLength(0);
+    expect(location.hash === '' || location.hash === '#/').toBe(true);
+  });
+
+  it('a popstate that never arrives is fixed by the safety timer (no UI call either way)', () => {
     vi.useFakeTimers();
     const back = vi.spyOn(history, 'back').mockImplementation(() => {});
     writeRoute({ id: 'risk' }, true);
-    leaveToHome({ source: 'system' });
-    expect(calls).toHaveLength(0);
+    leaveToHome();
+    expect(location.hash).toBe('#/risk');
     vi.advanceTimersByTime(700);
-    expect(calls).toHaveLength(1);
-    expect(calls[0].r.id).toBeNull();
+    expect(calls).toHaveLength(0);
     expect(location.hash).toBe('#/');
     back.mockRestore();
     // navigation is not wedged afterwards: a new close starts a new traversal
-    expect(leaveToHome({ source: 'system' })).toBe(false); // state was reset by the replaceState, so it rewrites to home
+    expect(leaveToHome()).toBe(false); // state was reset by the replaceState, so it rewrites to home
   });
 });

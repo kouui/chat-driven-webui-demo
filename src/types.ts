@@ -76,8 +76,18 @@ export interface PerchOpts {
   /** Scrollport/container: clamp the perch point inside this element's rect; if the target is
    *  scrolled fully out of it, hide (fade) the butterfly until the target is visible again. */
   within?: Element;
+  /** Minimum flight duration in ms (used to sync the flight with a page-open transition). */
+  minDuration?: number;
+  /** Called once when the remaining flight time drops to <= 300ms (immediately for short flights,
+   *  never for cancelled flights). The app uses it to start revealing the page shell. */
+  onApproach?: () => void;
+  /** Trail intensity for this flight. Default 'full'. */
+  trail?: 'full' | 'light' | 'none';
+  /** Upper bound for this flight's duration in ms (e.g. the short post-landing hop). Wins over the speed cap. */
+  maxDuration?: number;
 }
-export type ButterflyMode = 'idle' | 'listening' | 'flying' | 'perched';
+/** 'voice' = mic demo active: rapid shallow wing vibration + outward ripples (see docs/tasks/002-motion/spec.md). */
+export type ButterflyMode = 'idle' | 'listening' | 'voice' | 'flying' | 'perched';
 
 export interface Butterfly {
   /** Fly to an element (and keep following it while perched) or to a viewport point.
@@ -89,13 +99,29 @@ export interface Butterfly {
   setMode(mode: Exclude<ButterflyMode, 'flying'>): void;
   /** Short "confused head-tilt" gesture (no-match). */
   tilt(): void;
+  /** Light relay: a short stream of stardust flows from `from` (the control the user touched) into the butterfly (~160ms). */
+  spark(from: Element | { x: number; y: number }): void;
+  /** Voice level 0..1 (fake envelope from the app); only used in 'voice' mode. */
+  setVoiceLevel(level: number): void;
+  /** Current viewport position of the butterfly body. */
+  position(): { x: number; y: number };
+  /** Turn head/body toward a point or element without moving (≤ 450ms ease); null returns to neutral. */
+  turnToward(target: Element | { x: number; y: number } | null): void;
+  /** Global motion tempo: 1 = design speed, 0.5 = everything takes twice as long (flights, streak, landing,
+   *  trail lifetimes, idle tempo, flap rates). Voice vibration is exempt. */
+  setTimeScale(scale: number): void;
   setReducedMotion(on: boolean): void;
   destroy(): void;
 }
 
 export interface Guide {
   /** Single entry point for attention: optional dim, butterfly flies to el, then one gold pulse on el. */
-  focus(el: Element, opts?: PerchOpts & { dim?: boolean; pulse?: boolean }): Promise<boolean>;
+  /** `reveal` runs after a successful landing (e.g. page content fade-in); the pulse/underline
+   *  happens only after it resolves and only if this focus is still current. */
+  focus(el: Element, opts?: PerchOpts & {
+    dim?: boolean; pulse?: boolean; underline?: boolean;
+    reveal?: () => void | Promise<void>;
+  }): Promise<boolean>;
   /** Clear dim/pulse and send the butterfly home. */
   release(): Promise<boolean>;
 }

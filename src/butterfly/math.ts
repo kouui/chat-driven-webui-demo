@@ -99,8 +99,10 @@ export interface PerchOptions {
 
 export const DEFAULT_GAP = 24;
 export const DEFAULT_INSET = 16;
-/** Offset from the top-left corner for `inside-top-left` (px, both axes). */
-export const INSIDE_OFFSET = 10;
+/** `inside-top-left`: the body centre sits this far LEFT of the element's left edge (in the gutter, never on the first glyph). */
+export const INSIDE_GUTTER = 18;
+/** `inside-top-left`: the body centre sits this far below the element's top edge (about the first text line). */
+export const INSIDE_DROP = 12;
 
 /** Perch point (butterfly centre) outside the element edge for the given side. No viewport clamping. */
 export function perchPoint(rect: RectLike, side: PerchSide = 'top-right', o: PerchOptions = {}): Pt {
@@ -122,10 +124,7 @@ export function perchPoint(rect: RectLike, side: PerchSide = 'top-right', o: Per
     case 'right':
       return { x: rect.right + gap, y: cy };
     case 'inside-top-left':
-      return {
-        x: rect.left + Math.min(INSIDE_OFFSET, rect.width / 2),
-        y: rect.top + Math.min(INSIDE_OFFSET, rect.height / 2),
-      };
+      return { x: rect.left - INSIDE_GUTTER, y: rect.top + Math.min(INSIDE_DROP, rect.height / 2) };
   }
 }
 

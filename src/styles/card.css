@@ -25,6 +25,25 @@
   backdrop-filter: none;
   background: rgba(13, 18, 30, 0.95);
 }
+.card-rim {
+  /* gold rim glow that follows the shell reveal (animated from JS, fades out) */
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 0 1px rgba(245, 199, 106, 0.6), inset 0 0 36px rgba(245, 199, 106, 0.26);
+}
+.card-ghost {
+  /* the outgoing content of a page -> page switch: a clone that fades and slides away while the new page is measured */
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  height: auto;
+  overflow: hidden;
+  pointer-events: none;
+}
 .card-close {
   position: absolute;
   top: 12px;
@@ -213,10 +232,24 @@
   width: fit-content;
   max-width: calc(100% + 12px);
   margin-left: -12px;
-  padding: 0 8px 0 28px;
+  padding: 0 8px 0 32px;
 }
 .panel[data-perch] > .panel-title {
   padding-left: 24px;
+}
+
+/* Same-page confirmation pulse (its own class: it never fights the guide's .bf-pulse). Shorter than the arrival pulse. */
+.bf-confirm {
+  animation: bf-pulse-ring calc(600ms * var(--tm)) ease-out 1;
+}
+html.motion-reduced .bf-confirm {
+  animation: none;
+  outline: 2px solid rgba(245, 199, 106, 0.9);
+  outline-offset: 3px;
+}
+/* The arrival pulse is a quick cue, not a second show: 600ms. */
+.bf-pulse {
+  animation-duration: calc(600ms * var(--tm));
 }
 
 .badge {
@@ -515,6 +548,11 @@
   font-size: 26px;
 }
 
+@media (max-width: 640px) {
+  .card-scroll {
+    padding-left: 24px; /* the butterfly + pad gutter (left of the answers) */
+  }
+}
 @media (max-width: 400px) {
   .kpi-value {
     font-size: 18px;
@@ -523,7 +561,8 @@
     font-size: 22px;
   }
   .card-scroll {
-    padding-left: 12px;
+    /* the perched butterfly (and its pad) sit in this gutter, left of the answer: keep room for them */
+    padding-left: 24px;
     padding-right: 12px;
   }
 }

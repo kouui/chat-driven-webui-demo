@@ -147,9 +147,9 @@ describe('lissajous', () => {
 });
 
 describe('inside-top-left / within helpers', () => {
-  it('perches 10px inside the top-left corner (less for tiny rects)', () => {
-    expect(perchPoint(rect(100, 200, 300, 80), 'inside-top-left')).toEqual({ x: 110, y: 210 });
-    expect(perchPoint(rect(100, 200, 8, 6), 'inside-top-left')).toEqual({ x: 104, y: 203 });
+  it('perches in the gutter: 18px left of the element, 12px below its top (less for short rects)', () => {
+    expect(perchPoint(rect(100, 200, 300, 80), 'inside-top-left')).toEqual({ x: 82, y: 212 });
+    expect(perchPoint(rect(100, 200, 8, 6), 'inside-top-left')).toEqual({ x: 82, y: 203 });
   });
   it('resolvePerch never flips inside-top-left, only clamps to the viewport', () => {
     const r = resolvePerch(rect(-50, -50, 300, 80), 'inside-top-left', 800, 600, 16);

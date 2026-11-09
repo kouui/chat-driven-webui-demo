@@ -12,7 +12,7 @@
   gap: 6px;
   padding-bottom: 8px;
   pointer-events: none;
-  animation: wheel-in var(--t-med) var(--ease) both;
+  animation: wheel-in calc(180ms * var(--tm)) var(--ease) both;
 }
 .wheel > * {
   pointer-events: auto;
@@ -20,7 +20,7 @@
 @keyframes wheel-in {
   from {
     opacity: 0;
-    transform: scale(0.92);
+    transform: scale(0.94);
   }
 }
 .wheel-dial {
@@ -93,16 +93,21 @@
 .wheel-close:hover {
   background: rgba(245, 199, 106, 0.18);
 }
-/* anchor the butterfly perches on: a point on the upper-right rim */
+/* The anchor the butterfly perches on. src/app/wheel.ts moves it to the active sector's rim point; the transition is
+   a small spring (slight overshoot), and the perched butterfly follows it: no flight per sector change. */
 .wheel-rim {
   position: absolute;
   left: 85.4%;
   top: 14.6%;
   width: 8px;
   height: 8px;
-  margin: -4px 0 0 -4px;
+  margin: 0;
   border-radius: 50%;
   pointer-events: none;
+  transition: left calc(520ms * var(--tm)) cubic-bezier(0.3, 1.2, 0.5, 1), top calc(520ms * var(--tm)) cubic-bezier(0.3, 1.2, 0.5, 1);
+}
+html.motion-reduced .wheel-rim {
+  transition: none;
 }
 .wheel-hint {
   color: var(--muted);
@@ -125,10 +130,9 @@
     display: none;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .wheel {
-    animation-name: fade-in;
-  }
+/* Reduced motion = html.motion-reduced (src/app/motion.ts: URL > storage > OS). */
+html.motion-reduced .wheel {
+  animation-name: fade-in;
 }
 
 /* the home content (title, capsules) would compete with the sector labels: push it back while the wheel is up */
@@ -137,6 +141,9 @@ body.overlay-wheel .home {
   filter: blur(6px);
   pointer-events: none;
 }
-.home {
-  transition: opacity var(--t-med) var(--ease), filter var(--t-med) var(--ease);
+
+/* the sector the user picked brightens before the wheel fades */
+.sector.is-sent > path {
+  fill: #5a4519;
+  stroke: var(--gold-hi);
 }

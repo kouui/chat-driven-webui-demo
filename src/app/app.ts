@@ -1,10 +1,11 @@
 import type { Lang } from '../types';
 import { createButterfly, createGuide } from '../butterfly';
+import type { CancellableGuide } from '../butterfly';
 import { createMatcher } from '../intent';
 import { destinations, systemIntents } from '../data/destinations';
 import { getLang, initLang, onLangChange, setLang, t } from '../i18n';
 import { $, isMobile, raf2 } from './dom';
-import { butterflyOwner, getState, setState } from './state';
+import { butterflyOwner, getState, setState, subscribe } from './state';
 import { applyRoute, bindNav, navigate } from './navigate';
 import { initRouter } from './router';
 import { initAnnounce, announce } from './announce';
@@ -15,9 +16,22 @@ import { createPageCard } from './pagecard';
 import { createWheel } from './wheel';
 import { createTutorial } from './tutorial';
 import { createChatbar } from './chatbar';
+import { createChoreo } from './choreo';
+import { watchHesitation } from './hints';
+import { feedback, getTempo, initMotionPref, initTempo, isClaimed, ms, onMotionChange, onOpBegin, onTempoChange, prefersReducedMotion } from './motion';
+import { createMotionUi } from './motionui';
+import { createPads } from './pads';
+import type { PadSpec } from './pads';
+
+/** The Wheel button's one-off pulse (matches `.pulse-once` in chatbar.css, design ms). */
+const PULSE_ONCE_MS = 1100;
+/** Watchdog: the home capsules appear at the latest this long after a close (design ms). */
+const HOME_REVEAL_WATCHDOG_MS = 1400;
 
 export function startApp(): void {
   initLang();
+  initMotionPref(); // URL ?motion= > localStorage > OS; sets html.motion-reduced
+  initTempo(); // URL ?speed= > localStorage > 0.5; sets --tempo on <html>; every choreography time goes through ms()
   initAnnounce($('#live'), $('#toast'));
   buildStarfield($('#starfield'));
 
@@ -28,20 +42,115 @@ export function startApp(): void {
   const scrim = $('#scrim');
   const ring = $('#ring');
 
-  const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const pads = createPads($('#pad-layer'));
   const butterfly = createButterfly($('#butterfly-layer'), {
-    reducedMotion: mql.matches,
+    reducedMotion: prefersReducedMotion(), // the app owns the preference: the butterfly never reads the OS query
+    onTarget: (el, phase) => pads.target(el, phase),
     home: () => {
       const r = ring.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     },
   });
-  mql.addEventListener('change', () => butterfly.setReducedMotion(mql.matches));
-  const guide = createGuide(butterfly, { dimLayer: $('#dim') });
+  butterfly.setTimeScale(getTempo());
+  onTempoChange((tempo) => butterfly.setTimeScale(tempo));
+  onMotionChange((reduced) => {
+    butterfly.setReducedMotion(reduced);
+    pads.wake();
+  });
+  const baseGuide: CancellableGuide = createGuide(butterfly, { dimLayer: $('#dim') });
+  // The pad of the target brightens when the flight gets close; the ring is the home pad.
+  const guide: CancellableGuide = {
+    focus: (el, o = {}) =>
+      baseGuide.focus(el, {
+        ...o,
+        onApproach: () => {
+          pads.approach(el);
+          o.onApproach?.();
+        },
+      }),
+    release: () => {
+      const p = baseGuide.release();
+      pads.light('home', 'near');
+      return p.then((ok) => {
+        if (ok && butterflyOwner() === 'home') pads.light('home', 'lit');
+        return ok;
+      });
+    },
+    cancel: () => baseGuide.cancel(),
+  };
+  // Pending reveals / underlines / pulses of the guide belong to the operation that started them.
+  onOpBegin(() => baseGuide.cancel());
   const matcher = createMatcher(destinations, systemIntents);
+  const motionUi = createMotionUi($('#motion-toggle'), $('#motion-notice'));
 
   const center = createCenter($('#center'), (o) => settle(o));
-  const page = createPageCard();
+  let lookTimer = 0;
+  // Any new operation ends a pending / running glance (a flight ignores turnToward anyway).
+  onOpBegin(() => {
+    window.clearTimeout(lookTimer);
+    butterfly.turnToward(null);
+  });
+  const page = createPageCard({
+    // hover / focus on a follow-up for 450ms: the butterfly turns toward it (no timed flights to follow-ups)
+    look: (el) => {
+      window.clearTimeout(lookTimer);
+      if (el) lookTimer = window.setTimeout(() => el.isConnected && butterfly.turnToward(el), 450);
+      else butterfly.turnToward(null);
+    },
+  });
+  const choreo = createChoreo({
+    butterfly,
+    guide,
+    page,
+    center,
+    input,
+    pill: $('.cmd-pill'),
+    ring,
+    pulseWheel: (op) => {
+      feedback(wheelBtn, 'pulse-once', ms(PULSE_ONCE_MS), op); // timeout cleanup (also when the animation is off); a newer action clears it
+      butterfly.turnToward(wheelBtn);
+    },
+    settle: (o) => settle(o),
+    rest: () => chat.restMode(),
+    releaseOverlays: () => {
+      wheel.release();
+      tutorial.release();
+    },
+    syncPads: () => syncPads(),
+    lightPad: (key, state) => pads.light(key, state),
+  });
+
+  // ---- landing pads: one per perch owner (A2) ----------------------------------------------------------
+  function padSpecs(): PadSpec[] {
+    const st = getState();
+    const specs: PadSpec[] = [{ key: 'home', el: ring, self: true }];
+    if (st.overlay === 'wheel') specs.push({ key: 'wheel', ident: 'wheel', el: wheel.rim, side: 'top-right' });
+    if (st.overlay === 'tutorial') specs.push({ key: 'tutorial', ident: 'tutorial', el: tutorial.title, side: 'inside-top-left', within: tutorial.root });
+    if (st.route) {
+      const visible = (): boolean => page.padsVisible() && getState().overlay !== 'wheel';
+      const cur = page.target();
+      const first = destinations.find((d) => d.id === st.route)?.anchors[0];
+      const kpi = first ? page.target(first) : null;
+      if (cur) specs.push({ key: 'anchor', ident: `${st.route}:${st.anchor}`, el: cur.el, side: cur.opts.side, within: cur.opts.within, show: visible });
+      if (kpi && kpi.el !== cur?.el) specs.push({ key: 'kpi', ident: `${st.route}:kpi`, el: kpi.el, side: kpi.opts.side, within: kpi.opts.within, show: visible });
+    } else if (st.center.kind !== 'capsules') {
+      const prompt = center.el.querySelector<HTMLElement>('[data-perch="center-prompt"]');
+      if (prompt) specs.push({ key: 'prompt', ident: st.center.kind, el: prompt, side: 'top', show: () => !prompt.hasAttribute('data-hold') });
+    }
+    const nest = choreo.nestAnchor();
+    if (nest) specs.push({ key: 'nest', ident: 'nest', el: nest, side: 'top' }); // measured: follows resize / rotation
+    return specs;
+  }
+  let padSyncQueued = false;
+  function syncPads(): void {
+    if (padSyncQueued) return;
+    padSyncQueued = true;
+    queueMicrotask(() => {
+      padSyncQueued = false;
+      pads.sync(padSpecs());
+    });
+  }
+  subscribe(() => syncPads());
 
   /** The ONE place that decides where the butterfly belongs, derived from state (see `butterflyOwner`):
    *  wheel rim / tutorial title > page anchor > centre prompt / capsule group > home. Call it after every
@@ -50,6 +159,7 @@ export function startApp(): void {
    *  navigation's `scroll` / `pulse` survives a language switch that follows it (the owner is read at run time). */
   let settleSeq = 0;
   let pendingOpts: { pulse: boolean; scroll: boolean } | null = null;
+  let homeEpoch = 0;
   function settle(o: { pulse?: boolean; scroll?: boolean } = {}): void {
     const merged = { pulse: !!(pendingOpts?.pulse || o.pulse), scroll: !!(pendingOpts?.scroll || o.scroll) };
     pendingOpts = merged;
@@ -58,13 +168,20 @@ export function startApp(): void {
       if (seq !== settleSeq) return; // a newer state change took over (and carries our options)
       pendingOpts = null;
       const { pulse } = merged;
-      chat.restMode(); // once per settle: the butterfly leaves 'listening' and, at home, flies home exactly once
+      // A choreography (page open, sweep, the voice nest ...) owns the flight: a second focus would restart it.
+      if (isClaimed()) {
+        chat.restMode();
+        return;
+      }
+      const landedHome = (ok: boolean): void => {
+        if (ok) center.revealHome(homeEpoch); // the capsules stagger in from the butterfly's landing on the ring
+      };
       switch (butterflyOwner()) {
         case 'wheel':
-          void guide.focus(wheel.rim, { side: 'top-right', pulse: false });
+          void guide.focus(wheel.rim, { side: 'top-right', pulse: false, trail: 'light' });
           break;
         case 'tutorial':
-          void guide.focus(tutorial.title, { side: 'inside-top-left', pulse: false });
+          void guide.focus(tutorial.title, { side: 'inside-top-left', within: tutorial.root, pulse: false });
           break;
         case 'page': {
           const tg = page.target();
@@ -82,18 +199,20 @@ export function startApp(): void {
         case 'capsules': {
           // Below the capsule group: above it sits the home hint line, which the butterfly must not cover.
           const list = center.el.querySelector<HTMLElement>('[data-perch="center-list"]') ?? center.el;
-          void guide.focus(list, { side: 'bottom', pulse });
+          void guide.focus(list, { side: 'bottom', pulse }).then(landedHome);
           break;
         }
         default:
-          void guide.release();
+          void guide.release().then(landedHome);
       }
+      // After the flight has started: leaving the 'voice' mode earlier would fade the rings instead of folding them in.
+      chat.restMode();
     });
   }
 
-  const wheel = createWheel({ input, scrim, button: wheelBtn, settle: () => settle() });
+  const wheel = createWheel({ input, scrim, button: wheelBtn, settle: () => settle(), turn: (el) => butterfly.turnToward(el) });
   const tutorial = createTutorial({ input, scrim, button: tutorialBtn, wheelButton: wheelBtn, settle: () => settle() });
-  const chat = createChatbar({ input, mic, wheelBtn, tutorialBtn, matcher, butterfly, center });
+  const chat = createChatbar({ input, mic, wheelBtn, tutorialBtn, matcher, butterfly, center, choreo, settle: () => settle() });
 
   // After closing a page: desktop returns to the input; touch devices must not pop the soft keyboard, so the home heading gets focus.
   const coarse = window.matchMedia('(pointer: coarse)');
@@ -101,22 +220,30 @@ export function startApp(): void {
 
   // ---- navigation hooks
   bindNav({
-    showPage(id, anchor) {
-      page.show(id, anchor);
-      settle({ pulse: true, scroll: true });
+    touch: (origin) => choreo.touch(origin),
+    showPage(id, anchor, source, origin) {
+      choreo.page(id, anchor, source, origin);
     },
-    showHome({ source, keepCenter, keepOverlay }) {
+    showHome({ source, keepCenter }) {
       const wasOpen = page.isOpen();
-      // An overlay opened while this close was pending is the newer action: it keeps its lead and its focus.
-      const overlayWins = !!keepOverlay && getState().overlay !== 'none';
-      if (wasOpen) page.hide();
-      if (!keepCenter && (wasOpen || getState().center.kind !== 'capsules')) center.redraw(getState().lastVisited);
+      // The close starts at once: it invalidates the running operation, the frame leaves (content, then a shrinking
+      // circle toward the ring) and `hidden` comes last. Also ends any older sequence (a hint, a sweep) unless this
+      // close belongs to one (keepCenter: candidates / no match). History catches up asynchronously (navigate.ts).
+      void choreo.closePage(!!keepCenter);
+      if (wasOpen) choreo.homeVisit();
+      // The new capsules stay invisible and inert until the butterfly has landed on the ring, then they stagger in
+      // (`settle` -> landedHome). A watchdog covers the owners that never land there (wheel, tutorial).
+      if (!keepCenter && (wasOpen || getState().center.kind !== 'capsules')) {
+        const hold = !prefersReducedMotion() && getState().overlay !== 'wheel';
+        homeEpoch = center.redraw(getState().lastVisited, { hold });
+        const ep = homeEpoch;
+        if (hold) window.setTimeout(() => center.revealHome(ep), ms(HOME_REVEAL_WATCHDOG_MS));
+      }
       // Owner rule: the open tutorial keeps the butterfly until the content changes. Home reached from a page
       // or from a tutorial step is such a change; a no-op "home" typed while already at home is not.
       const contentChanged = wasOpen || source === 'tutorial';
-      setState({ ...(contentChanged && !overlayWins ? { tutorialLeads: false } : {}), pointCapsules: contentChanged ? source === 'tutorial' : getState().pointCapsules });
+      setState({ ...(contentChanged ? { tutorialLeads: false } : {}), pointCapsules: contentChanged ? source === 'tutorial' : getState().pointCapsules });
       settle({ pulse: true });
-      if (overlayWins) return;
       if (source === 'tutorial') {
         // Mobile: the sheet closed and the clicked step vanished with it; focus must not fall to BODY.
         if (isMobile()) $('#home-title').focus({ preventScroll: true });
@@ -126,10 +253,12 @@ export function startApp(): void {
       }
     },
     openWheel: (trigger) => {
+      choreo.overlayOpened();
       tutorial.close({ restoreFocus: false, settle: false }); // wheel and tutorial are mutually exclusive
       wheel.open(trigger);
     },
     openTutorial: (trigger) => {
+      choreo.overlayOpened();
       wheel.close({ restoreFocus: false, settle: false });
       tutorial.open(trigger);
     },
@@ -175,15 +304,25 @@ export function startApp(): void {
     chat.voice.cancel(); // the demo phrase is in the old language
     applyStaticText();
     syncLangButtons();
-    center.render(false);
+    motionUi.render();
+    center.render(false); // keeps every reveal state: held candidates stay hidden and inert
     wheel.render();
     tutorial.render();
     page.rerender();
-    settle(); // the butterfly stays with its owner; no scroll, no pulse
+    // No settle(): a language switch only re-attaches. The butterfly follows its element by `data-perch`, nothing
+    // is replayed, no flight starts, nothing is pulsed.
+    syncPads();
   };
   onLangChange(() => {
     renderLang();
     announce(t('announce.lang'));
+  });
+
+  // ---- (j) hesitation hint: 8s without any activity, at home, nothing open
+  watchHesitation({
+    canHint: () => butterflyOwner() === 'home' && getState().overlay === 'none' && getState().route === null && !chat.voice.isActive(),
+    fire: () => choreo.hint(),
+    cancel: () => choreo.cancelHint(), // activity ends a running hint (its flight, its border breath, its return)
   });
 
   // ---- boot
@@ -191,6 +330,8 @@ export function startApp(): void {
   applyStaticText();
   syncLangButtons();
   center.render(true);
+  pads.sync(padSpecs());
+  pads.light('home', 'lit'); // the butterfly starts on the ring
   const first = initRouter((route, ctx) => applyRoute(route, ctx));
   if (first.id) applyRoute(first, { source: 'hash' });
 }

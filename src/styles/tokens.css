@@ -22,8 +22,13 @@
   --radius: 20px;
   --radius-sm: 12px;
   --ease: cubic-bezier(0.22, 0.8, 0.3, 1);
+  /* Global motion tempo (src/app/motion.ts sets --tempo on <html>: 0.5 = everything twice as long; ?speed= overrides).
+     --tm = 1 / tempo is the duration multiplier: `calc(220ms * var(--tm))`. Reduced motion keeps real time (--tm: 1).
+     --t-fast is hover / focus feedback: it stays snappy. */
+  --tempo: 0.5;
+  --tm: calc(1 / var(--tempo));
   --t-fast: 150ms;
-  --t-med: 220ms;
+  --t-med: calc(220ms * var(--tm));
 
   --topbar-h: 64px;
   --bar-h: 56px;
@@ -52,4 +57,8 @@ body.overlay-tutorial {
   :root {
     --topbar-h: 56px;
   }
+}
+
+html.motion-reduced {
+  --tm: 1;
 }

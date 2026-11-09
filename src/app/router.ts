@@ -25,44 +25,44 @@ export function formatHash(r: Route): string {
   return `#/${r.id}${r.anchor && r.anchor !== 'title' ? `?a=${encodeURIComponent(r.anchor)}` : ''}`;
 }
 
-/** Why / how a navigation happened; travels with the (possibly asynchronous) route change. */
+/** Why / how a navigation happened; travels with the route change. */
 export interface RouteCtx {
   source: string;
   /** Keep candidates / no-match content when going home. */
   keepCenter?: boolean;
-  /** An overlay (wheel / tutorial) was opened while the close was pending: it is the newer action and
-   *  must survive the home view, keep its butterfly lead and keep keyboard focus. */
-  keepOverlay?: boolean;
 }
 
-/** A `history.back()` that has not produced its popstate yet. "The latest action wins": close requests
- *  coalesce into it, a page opened meanwhile is remembered (`then`) so the popstate re-pushes it instead
- *  of showing home, and an overlay opened meanwhile (`keepOverlay`) is not closed by the home view. */
-let closing: { ctx: RouteCtx; then: Route | null; keepOverlay: boolean; timer: number } | null = null;
+/** A `history.back()` that has not produced its popstate yet. The visible close has ALREADY started (the app never
+ *  waits for history); this only reconciles the history entry afterwards. A page opened meanwhile is remembered
+ *  (`then`) so the popstate re-pushes it instead of leaving history on home. */
+let closing: { then: Route | null; timer: number } | null = null;
 
-/** If the popstate for `history.back()` never arrives, apply it ourselves after this long. */
+/** If the popstate for `history.back()` never arrives, fix the entry ourselves after this long. */
 const CLOSE_TIMEOUT_MS = 600;
 
-let applyHome: (r: Route, ctx: RouteCtx) => void = () => {};
+/** The history traversal of a close whose fallback already ran may still deliver its popstate. Each entry is the time
+ *  until which that late event is recognised (afterwards it is an ordinary back/forward again). */
+const late: number[] = [];
+const LATE_POP_MS = 4000;
+/** The newest route the user asked for (a page, or home). A late close event restores history to it. */
+let intended: Route = { id: null };
 
-/** Finish a pending close: the popstate arrived (or, `forced`, it never will). */
+/** Finish a pending close: the popstate arrived (or, `forced`, it never will). Bookkeeping only, no UI. */
 function completeClosing(forced: boolean): void {
   if (!closing) return;
-  const { ctx, then, keepOverlay, timer } = closing;
+  const { then, timer } = closing;
   closing = null;
   window.clearTimeout(timer);
-  if (forced) history.replaceState(null, '', then ? formatHash(then) : '#/'); // we are still on the page's entry
+  if (forced) {
+    history.replaceState(null, '', then ? formatHash(then) : '#/'); // we are still on the page's entry
+    late.push(Date.now() + LATE_POP_MS); // the traversal may still complete: that popstate is bookkeeping, not navigation
+  }
   else if (then) history.pushState({ aurea: true }, '', formatHash(then)); // the page is already showing
-  if (!then) applyHome({ id: null }, keepOverlay ? { ...ctx, keepOverlay: true } : ctx);
-}
-
-/** A wheel / tutorial was opened: it is newer than a pending close, so the close must not undo it. */
-export function noteOverlayOpened(): void {
-  if (closing) closing.keepOverlay = true;
 }
 
 /** Write the route to history without firing popstate. Home -> page pushes; page -> page replaces. */
 export function writeRoute(next: Route, fromHome: boolean): void {
+  intended = next;
   if (closing) {
     closing.then = next;
     return;
@@ -73,17 +73,16 @@ export function writeRoute(next: Route, fromHome: boolean): void {
   else history.replaceState(history.state, '', hash);
 }
 
-/** Leave a page: step back if we pushed the entry, otherwise rewrite to home. Returns true when the
- *  home view will be shown asynchronously by the popstate handler. */
-export function leaveToHome(ctx: RouteCtx): boolean {
+/** Leave a page in history: step back if we pushed the entry, otherwise rewrite to home. Never shows anything:
+ *  the caller starts the visible close first. Returns true when a traversal is pending. */
+export function leaveToHome(): boolean {
+  intended = { id: null };
   if (closing) {
-    closing.ctx = ctx; // a newer close replaces the older one, and cancels the page / overlay it was keeping
-    closing.then = null;
-    closing.keepOverlay = false;
+    closing.then = null; // a newer close cancels the page that was meant to replace it
     return true;
   }
   if (history.state && (history.state as { aurea?: boolean }).aurea) {
-    closing = { ctx, then: null, keepOverlay: false, timer: window.setTimeout(() => completeClosing(true), CLOSE_TIMEOUT_MS) };
+    closing = { then: null, timer: window.setTimeout(() => completeClosing(true), CLOSE_TIMEOUT_MS) };
     history.back();
     return true;
   }
@@ -95,8 +94,15 @@ export function initRouter(onRoute: (r: Route, ctx: RouteCtx) => void): Route {
   const first = parseHash();
   // A reload keeps history.state; we can no longer trust that the previous entry is ours.
   history.replaceState(null, '', first.valid ? location.hash || '#/' : '#/');
-  applyHome = onRoute;
   window.addEventListener('popstate', () => {
+    // The late traversal of an earlier close (its fallback already ran): the entries are back in sync with `intended`
+    // (the latest route the user asked for); it is never applied as a new action.
+    while (late.length && late[0] < Date.now()) late.shift();
+    if (late.length) {
+      late.shift();
+      if (intended.id && location.hash !== formatHash(intended)) history.pushState({ aurea: true }, '', formatHash(intended));
+      return;
+    }
     if (closing) {
       completeClosing(false);
       return;

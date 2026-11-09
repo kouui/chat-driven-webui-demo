@@ -26,6 +26,10 @@ export interface Tutorial {
   isOpen(): boolean;
   /** The drawer title: where the butterfly perches. */
   readonly title: HTMLElement;
+  /** The drawer (the scrollport the perch point is clamped inside). */
+  readonly root: HTMLElement;
+  /** A close started with `hold` finishes visually now. */
+  release(): void;
 }
 
 export function createTutorial(deps: { input: HTMLInputElement; scrim: HTMLElement; button: HTMLElement; wheelButton: HTMLElement; settle: () => void }): Tutorial {
@@ -37,6 +41,7 @@ export function createTutorial(deps: { input: HTMLInputElement; scrim: HTMLEleme
   const foot = progress.parentElement as HTMLElement;
   const closeBtn = document.getElementById('tut-close') as HTMLButtonElement;
   let trigger: HTMLElement | null = null;
+  let held = false;
 
   /** `focusIdx`: the step that must keep keyboard focus (a click does not focus buttons in every browser). */
   function render(focusIdx?: number): void {
@@ -61,8 +66,8 @@ export function createTutorial(deps: { input: HTMLInputElement; scrim: HTMLEleme
               'aria-current': tutorialCurrent === i ? 'step' : null,
               onclick: () => {
                 markTutorialDone(i);
-                render(i);
-                navigate(st.target, { source: 'tutorial', trigger: deps.wheelButton });
+                render(i); // replaces the buttons: the touched step is the new one at the same place
+                navigate(st.target, { source: 'tutorial', trigger: deps.wheelButton, origin: list.querySelector<HTMLElement>(`[data-step="${i}"]`) });
               },
             },
             h('span', { class: 'tut-num', 'aria-hidden': 'true' }, done ? '✓' : String(i + 1)),
@@ -88,6 +93,8 @@ export function createTutorial(deps: { input: HTMLInputElement; scrim: HTMLEleme
   function open(tr?: HTMLElement | null): void {
     if (getState().overlay === 'tutorial') return;
     trigger = tr ?? deps.button;
+    held = false;
+    root.removeAttribute('inert');
     setState({ overlay: 'tutorial', tutorialLeads: true });
     document.body.classList.add('overlay-tutorial');
     root.hidden = false;
@@ -99,13 +106,23 @@ export function createTutorial(deps: { input: HTMLInputElement; scrim: HTMLEleme
     deps.settle();
   }
 
+  function finishClose(): void {
+    held = false;
+    document.body.classList.remove('overlay-tutorial');
+    root.hidden = true;
+    root.removeAttribute('inert');
+    if (getState().overlay !== 'tutorial') deps.scrim.hidden = true;
+  }
+
   function close(o: CloseOpts): void {
     if (getState().overlay !== 'tutorial') return;
     setState({ overlay: 'none' });
-    document.body.classList.remove('overlay-tutorial');
-    root.hidden = true;
-    deps.scrim.hidden = true;
     deps.button.setAttribute('aria-expanded', 'false');
+    // `hold` (mobile sheet): it stays on screen, inert, until the page shell appears (`release()`)
+    if (o.hold) {
+      held = true;
+      root.setAttribute('inert', '');
+    } else finishClose();
     if (o.restoreFocus) (trigger && trigger.isConnected ? trigger : deps.input).focus({ preventScroll: true });
     if (o.settle) deps.settle();
     trigger = null;
@@ -117,5 +134,5 @@ export function createTutorial(deps: { input: HTMLInputElement; scrim: HTMLEleme
     if (getState().overlay === 'tutorial') close({ restoreFocus: true, settle: true });
   });
 
-  return { open, close, title, render: () => getState().overlay === 'tutorial' && render(), isOpen: () => getState().overlay === 'tutorial' };
+  return { open, close, title, root, release: () => held && finishClose(), render: () => getState().overlay === 'tutorial' && render(), isOpen: () => getState().overlay === 'tutorial' };
 }
