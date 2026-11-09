@@ -33,7 +33,7 @@ Aurea is a small personal-finance dashboard with no sidebar. You type (or "speak
 
 ## Quick start
 
-Requires Node `^20.19.0 || >=22.12.0` (Vite 8's requirement).
+Requires Node **>=22.23.4 <23** (enforced via `engines` + `engine-strict`; older 22.x releases have a known security issue). With nvm: `nvm install && nvm use` (reads `.nvmrc`).
 
 ```bash
 npm install
