@@ -67,13 +67,22 @@ export interface Matcher {
 }
 
 // ---- Butterfly / guide ----
-export type PerchSide = 'top-left' | 'top-right' | 'top' | 'left' | 'right' | 'bottom';
+export type PerchSide = 'top-left' | 'top-right' | 'top' | 'left' | 'right' | 'bottom'
+  /** Inside the element, near its top-left corner (for wide/tall anchors and dense grids). */
+  | 'inside-top-left';
+
+export interface PerchOpts {
+  side?: PerchSide;
+  /** Scrollport/container: clamp the perch point inside this element's rect; if the target is
+   *  scrolled fully out of it, hide (fade) the butterfly until the target is visible again. */
+  within?: Element;
+}
 export type ButterflyMode = 'idle' | 'listening' | 'flying' | 'perched';
 
 export interface Butterfly {
   /** Fly to an element (and keep following it while perched) or to a viewport point.
    *  Resolves `true` on landing, `false` if cancelled by a newer flight. */
-  flyTo(target: Element | { x: number; y: number }, opts?: { side?: PerchSide }): Promise<boolean>;
+  flyTo(target: Element | { x: number; y: number }, opts?: PerchOpts): Promise<boolean>;
   /** Return to the home position (center of the stage ring) and idle. */
   home(): Promise<boolean>;
   /** e.g. 'listening' while the user types (faster flap, slight lift). */
@@ -86,7 +95,7 @@ export interface Butterfly {
 
 export interface Guide {
   /** Single entry point for attention: optional dim, butterfly flies to el, then one gold pulse on el. */
-  focus(el: Element, opts?: { side?: PerchSide; dim?: boolean; pulse?: boolean }): Promise<boolean>;
+  focus(el: Element, opts?: PerchOpts & { dim?: boolean; pulse?: boolean }): Promise<boolean>;
   /** Clear dim/pulse and send the butterfly home. */
   release(): Promise<boolean>;
 }

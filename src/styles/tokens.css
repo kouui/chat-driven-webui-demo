@@ -1,0 +1,55 @@
+:root {
+  --bg-0: #05070f;
+  --bg-1: #0c1220;
+  --card: rgba(14, 19, 31, 0.78);
+  --card-solid: #0e131f;
+  --card-border: rgba(245, 199, 106, 0.18);
+  --line: rgba(245, 199, 106, 0.16);
+  --gold: #f5c76a;
+  --gold-hi: #fff3c4;
+  --gold-deep: #b8862b;
+  --text: #e9e4d4;
+  --muted: #8a94a6;
+  --pos: #6fd3c4;
+  --neg: #ff7a6b;
+  --warn: #ffb35c;
+  --blue: #7fa8ff;
+
+  --font-display: "Noto Serif SC", "Songti SC", "Shippori Mincho", "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK JP", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --radius: 20px;
+  --radius-sm: 12px;
+  --ease: cubic-bezier(0.22, 0.8, 0.3, 1);
+  --t-fast: 150ms;
+  --t-med: 220ms;
+
+  --topbar-h: 64px;
+  --bar-h: 56px;
+  --bar-space: calc(var(--bar-h) + 30px + env(safe-area-inset-bottom, 0px));
+  --drawer-w: 340px;
+  --dock-r: 0px;
+
+  --z-stars: 0;
+  --z-stage: 1;
+  --z-dim: 0;
+  --z-page: 20;
+  --z-top: 25;
+  --z-bar: 30;
+  --z-toast: 35;
+  --z-scrim: 40;
+  --z-overlay: 45;
+}
+
+body.overlay-tutorial {
+  --dock-r: var(--drawer-w);
+}
+@media (max-width: 768px) {
+  body.overlay-tutorial {
+    --dock-r: 0px;
+  }
+  :root {
+    --topbar-h: 56px;
+  }
+}

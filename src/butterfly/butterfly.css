@@ -1,0 +1,98 @@
+/* Butterfly overlay + guide helpers. All class names are prefixed `bf-`. */
+
+.bf-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9000;
+  overflow: hidden;
+}
+
+/* Outer wrapper: position only (translate3d is written from JS). */
+.bf-root {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  will-change: transform;
+  /* Fades out while the perch target is scrolled out of its `within` container. */
+  transition: opacity 200ms linear;
+}
+
+/* Fade wrapper: used for the reduced-motion cross-fade. */
+.bf-fade {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 1;
+  transition: opacity 150ms linear;
+}
+
+/* Sprite: bob / sink / tilt / scale (written from JS), centred on the root point. */
+.bf-sprite {
+  position: absolute;
+  left: -32px;
+  top: -32px;
+  width: 64px;
+  height: 64px;
+  will-change: transform;
+}
+
+.bf-svg {
+  display: block;
+  overflow: visible;
+}
+
+/* Wing flap transforms are written from JS each frame; the pivot is the body axis. */
+.bf-wing {
+  transform-box: view-box;
+  transform-origin: 50px 50px;
+}
+
+/* ---- Guide: dim (one-shot transition, not a continuous animation) ---- */
+.bf-dimlayer {
+  transition: opacity 280ms ease;
+}
+.bf-dimlayer.bf-dim {
+  opacity: 0.38;
+}
+
+/* ---- Guide: one-shot gold pulse ring (~800ms, class is removed by JS) ---- */
+.bf-pulse {
+  animation: bf-pulse-ring 800ms ease-out 1;
+}
+
+@keyframes bf-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 199, 106, 0.85), 0 0 18px 2px rgba(245, 199, 106, 0.45);
+  }
+  60% {
+    box-shadow: 0 0 0 10px rgba(245, 199, 106, 0.28), 0 0 24px 4px rgba(245, 199, 106, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 0 16px rgba(245, 199, 106, 0), 0 0 28px 6px rgba(245, 199, 106, 0);
+  }
+}
+
+/* Reduced motion: no animation, a static outline for the same 800ms. */
+@media (prefers-reduced-motion: reduce) {
+  .bf-pulse {
+    animation: none;
+    outline: 2px solid rgba(245, 199, 106, 0.9);
+    outline-offset: 3px;
+  }
+  .bf-dimlayer {
+    transition: none;
+  }
+}
+.bf-reduced .bf-pulse {
+  animation: none;
+  outline: 2px solid rgba(245, 199, 106, 0.9);
+  outline-offset: 3px;
+}
+.bf-reduced .bf-dimlayer {
+  transition: none;
+}

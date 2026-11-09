@@ -1,0 +1,196 @@
+.cmdbar {
+  position: absolute;
+  left: 0;
+  right: var(--dock-r);
+  bottom: 0;
+  z-index: var(--z-bar);
+  padding: 0 clamp(10px, 3vw, 24px) calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: center;
+  transition: right var(--t-med) var(--ease);
+  pointer-events: none;
+}
+.cmd-pill {
+  pointer-events: auto;
+  width: min(720px, 100%);
+  height: var(--bar-h);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(12, 17, 29, 0.82);
+  border: 1px solid rgba(245, 199, 106, 0.28);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cmd-pill {
+    background: #0b101c;
+  }
+}
+.cmd-pill:focus-within {
+  border-color: rgba(245, 199, 106, 0.6);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 24px rgba(245, 199, 106, 0.12);
+}
+.cmd-btn {
+  flex: none;
+  min-width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--gold);
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.cmd-btn:hover {
+  background: rgba(245, 199, 106, 0.1);
+}
+.cmd-mic {
+  width: 44px;
+  padding: 0;
+  background: rgba(245, 199, 106, 0.08);
+  border-color: rgba(245, 199, 106, 0.3);
+}
+.cmd-mic[aria-pressed="true"] {
+  background: rgba(245, 199, 106, 0.28);
+  color: var(--gold-hi);
+}
+.cmd-action {
+  border-color: rgba(245, 199, 106, 0.3);
+  font-size: 14px;
+}
+.cmd-action[aria-expanded="true"] {
+  background: rgba(245, 199, 106, 0.2);
+  color: var(--gold-hi);
+}
+.cmd-text {
+  white-space: nowrap;
+}
+.pulse-once {
+  animation: btn-pulse 900ms ease-out 1;
+}
+@keyframes btn-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 199, 106, 0.75);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(245, 199, 106, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 199, 106, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-once {
+    animation: none;
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+}
+
+.input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+}
+.input-wrap input {
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+  outline: none;
+  text-overflow: ellipsis;
+}
+.input-wrap input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.input-wrap input:focus-visible {
+  outline: none;
+}
+.input-wrap.is-voice input {
+  opacity: 0;
+}
+
+/* mic demo: animated waveform while "listening" (~1.5 s) */
+.voice {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+.voice-bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+}
+.voice-bars i {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--gold);
+  transform-origin: center;
+  animation: wave 900ms ease-in-out infinite;
+  animation-delay: calc(var(--k, 0) * -110ms);
+}
+.voice-bars i:nth-child(1) { --k: 1; }
+.voice-bars i:nth-child(2) { --k: 5; }
+.voice-bars i:nth-child(3) { --k: 2; }
+.voice-bars i:nth-child(4) { --k: 7; }
+.voice-bars i:nth-child(5) { --k: 3; }
+.voice-bars i:nth-child(6) { --k: 8; }
+.voice-bars i:nth-child(7) { --k: 4; }
+.voice-bars i:nth-child(8) { --k: 6; }
+.voice-bars i:nth-child(9) { --k: 0; }
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.2); }
+  50% { transform: scaleY(1); }
+}
+.voice-label {
+  color: var(--gold-hi);
+  font-size: 14px;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-bars i {
+    animation: none;
+    transform: scaleY(0.6);
+  }
+}
+
+@media (max-width: 520px) {
+  .cmd-text {
+    display: none;
+  }
+  .cmd-action {
+    width: 44px;
+    padding: 0;
+  }
+  .cmd-pill {
+    gap: 2px;
+    padding: 5px;
+  }
+  .input-wrap input {
+    padding: 0 8px;
+  }
+}
+@media (max-width: 768px) {
+  .cmdbar {
+    right: 0;
+  }
+}

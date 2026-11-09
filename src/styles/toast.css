@@ -1,0 +1,55 @@
+.toast {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + (var(--topbar-h) - 44px) / 2);
+  height: 44px;
+  line-height: 42px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  left: 50%;
+  z-index: var(--z-toast);
+  max-width: min(90vw, 480px);
+  padding: 0 20px;
+  white-space: nowrap;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 199, 106, 0.4);
+  background: rgba(14, 19, 31, 0.92);
+  color: var(--gold-hi);
+  font-size: 15px;
+  text-align: center;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translate(-50%, -8px);
+  pointer-events: none !important;
+  transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease);
+}
+.toast.is-show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.toast:empty {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .toast {
+    top: auto;
+    bottom: calc(var(--bar-space) + 8px);
+    height: auto;
+    min-height: 44px;
+    line-height: 1.35;
+    padding: 10px 20px;
+    white-space: normal;
+    max-width: min(92vw, 480px);
+    transform: translate(-50%, 8px);
+  }
+  /* with a page open the follow-up capsules sit right above the command bar: the toast rides above them */
+  body.has-page .toast {
+    bottom: calc(var(--bar-space) + 8px + 64px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast.is-show {
+    transform: translate(-50%, 0);
+  }
+}
