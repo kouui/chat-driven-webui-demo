@@ -33,7 +33,7 @@ Aurea is a small personal-finance dashboard with no sidebar. You type (or "speak
 
 ## Quick start
 
-Requires Node **>=22.23.4 <23** (enforced via `engines` + `engine-strict`; older 22.x releases have a known security issue). With nvm: `nvm install && nvm use` (reads `.nvmrc`).
+Requires Node **24.22.2+** (`>=24.22.2 <25 || >=26.12.1`, enforced via `engines` + `engine-strict`; these include the October 2026 Node.js security fixes for the eMudhra CA compromise and the Brotli RCE CVE-2026-111497). With nvm: `nvm install && nvm use` (reads `.nvmrc`).
 
 ```bash
 npm install
