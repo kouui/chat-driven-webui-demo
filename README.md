@@ -65,6 +65,16 @@ Other keys: `aurea.lang` (language), and `aurea.tutorial` in `sessionStorage` (t
 
 ## How intent matching works
 
+**In a real application, page selection should come from a decision model, not from this matcher.** A "System One" decision model such as [Jev](https://www.datacamp.com/blog/system-one-models-jev) from TypeSafe AI fits this job. It answers typed questions with calibrated probabilities in one fast pass, rather than generating text. The question here is "which destination and which anchor does this request want?", and the answer is a probability for each option:
+
+- **Confident:** the top option is clearly ahead, so the butterfly flies straight there.
+- **Ambiguous:** several options are close, so they are shown as candidate capsules.
+- **No match:** suggestions are shown and the Wheel button pulses.
+
+The demo ships without any model or API key. The local matcher below stands in for that decision layer, and in production it would stay as the **fallback**: offline use, timeouts, or a missing key. It could also build the shortlist of candidate pages sent to the model.
+
+### The local fallback matcher
+
 The matcher is in `src/intent/` and has no dependencies. It is a layered, explainable score, not a model.
 
 1. **Normalisation:** case, width and kana folding, punctuation and filler removal.
