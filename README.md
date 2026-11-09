@@ -6,7 +6,7 @@ Aurea is a small personal-finance dashboard with no sidebar. You type (or "speak
 
 <!-- DEMO VIDEO: drag the demo .mp4 here in the GitHub web editor; GitHub replaces this line with an inline player URL -->
 
-*English UI, recorded at `?speed=1` (the app defaults to a calmer 0.5×). In order: idle home → capsule click opens Overview → follow-up to Holdings → typed "how much did I make" flies to Returns → back home → Wheel → voice demo with ripples → home.*
+*English UI at the default 0.5× tempo (31 s): 0:00 idle home → 0:02 a capsule opens Cash flow → 0:06 follow-up to Overview → 0:10 typed "how much did I make" flies to Returns → 0:14 Wheel opened from that page, Holdings selected → 0:20 voice demo with ripples, flight to the answer → 0:27 back home.*
 
 ## Features
 
@@ -28,7 +28,7 @@ Aurea is a small personal-finance dashboard with no sidebar. You type (or "speak
 - Voice ripples: in the voice demo the wings vibrate and rings spread outward.
 
 **Other**
-- The language switcher (zh / EN / 日) changes every UI string at runtime without replaying animations. The choice is stored in `localStorage` (`aurea.lang`).
+- The language switcher (中 / EN / 日 — Chinese, English, Japanese) changes every UI string at runtime without replaying animations. The choice is stored in `localStorage` (`aurea.lang`).
 - Accessibility: focus moves into the wheel and the tutorial, Tab is trapped there, and focus returns to the trigger on close. Everything works from the keyboard (Esc closes, Enter is ignored during IME composition). Content the butterfly has not revealed yet is `inert`. Reduced motion is respected (see below).
 
 ## Quick start
