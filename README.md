@@ -4,7 +4,10 @@
 
 Aurea is a small personal-finance dashboard with no sidebar. You type (or "speak") a request, the butterfly flies from where you acted to where the answer will appear, and the page opens at the point where it lands. The aim is to test one idea: the interface should lead the user's attention, not wait for the user to find the right button.
 
-<!-- DEMO VIDEO: drag the demo .mp4 here in the GitHub web editor; GitHub replaces this line with an inline player URL -->
+
+
+https://github.com/user-attachments/assets/36dc0da6-2a59-4e1a-ab59-7fc2cf620a58
+
 
 *English UI at the default 0.5× tempo (31 s): 0:00 idle home → 0:02 a capsule opens Cash flow → 0:06 follow-up to Overview → 0:10 typed "how much did I make" flies to Returns → 0:14 Wheel opened from that page, Holdings selected → 0:20 voice demo with ripples, flight to the answer → 0:27 back home.*
 
